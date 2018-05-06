@@ -54,7 +54,7 @@ point_t l_points[LOCAL_GRID_SIZE*LOCAL_GRID_SIZE];
 
 int main()
 {
-	FeatureDetector detect(10, 40, (float)0.03, 50);
+	FeatureDetector detect(10, 30, (float)0.01, 50);
 
 	int num_odometry_samples = readOdometryFromFile(odometry, MAX_ODOMETRY_SAMPLES);
 	int num_lidar_samples    = readLidarFromFile(lidar, MAX_LIDAR_SAMPLES);
@@ -84,11 +84,11 @@ int main()
 
 		if (1)
 		{
-			get_local_ocupancy_grid(data_points, num_points, grid, 0.1, LOCAL_GRID_MAX_RANGE);
+			get_local_ocupancy_grid(data_points, num_points, grid, 0.05, LOCAL_GRID_MAX_RANGE);
 			//dump_ocupancy_map(&grid[0][0], LOCAL_GRID_MAX_RANGE, "grid.txt");
 			float angle = robot.Q;
-			int rx = roundf(robot.pos.x / 0.1);
-			int ry = roundf(robot.pos.y / 0.1);
+			int rx = roundf(robot.pos.x / 0.05);
+			int ry = roundf(robot.pos.y / 0.05);
 			extract_local_grid(g_grid, GLOBAL_GRID_MAX_RANGE, l_grid, LOCAL_GRID_MAX_RANGE, angle, rx, ry);
 			//num_points = extract_local_points(g_grid, GLOBAL_GRID_MAX_RANGE, l_points, LOCAL_GRID_MAX_RANGE, angle, rx, ry);
 			int cost, matches;
@@ -97,11 +97,11 @@ int main()
 			{
 				printf("update: %d %d %d %d\n", dangle, dx, dy, matches);
 				robot.Q += dangle * DEGREES_TO_RADIAN;
-				//robot.pos.x += dx * 0.05 * 0.2;
-				//robot.pos.y += dy * 0.05 * 0.2;
+				//robot.pos.x += dx * 0.05 * 0.5;
+				//robot.pos.y += dy * 0.05 * 0.5;
 			}
 			printf("cost: %d %d %d %d %d\n", matches, cost, dx, dy, dangle);
-			update_map(g_grid, GLOBAL_GRID_MAX_RANGE, grid, LOCAL_GRID_MAX_RANGE, robot.Q, roundf(robot.pos.x / 0.1), roundf(robot.pos.y / 0.1));
+			update_map(g_grid, GLOBAL_GRID_MAX_RANGE, grid, LOCAL_GRID_MAX_RANGE, robot.Q, roundf(robot.pos.x / 0.05), roundf(robot.pos.y / 0.05));
 
 		}
 		else
@@ -122,7 +122,7 @@ int main()
 			transform_segments(segments, num_segments, robot.pos.x, robot.pos.y, robot.Q);
 			match_segments(segments, num_segments, sg_db, num_sg_db, match_sg, inn_sg, robot);	
 
-			float k_angle = 1.0;
+			float k_angle = 0.8;
 			float sumq = 0.0;
 			int count = 0;
 			for (int i = 0; i < num_segments; ++i)
@@ -200,9 +200,26 @@ int main()
 				if (match_sg[i] == -1)
 					tem_sg[count++] = segments[i];
 			//dumpSegmentsToFile(tem_sg, count, "segments.txt", iter);
-			update_map(g_grid, GLOBAL_GRID_MAX_RANGE, grid, LOCAL_GRID_MAX_RANGE, robot.Q, (int)(robot.pos.x / 0.05), (int)(robot.pos.y / 0.05));
+			update_map(g_grid, GLOBAL_GRID_MAX_RANGE, grid, LOCAL_GRID_MAX_RANGE, robot.Q, (int)(robot.pos.x / 0.05), (int)(robot.pos.y / 0.05));                                         // Wait for a keystroke in the window
 		}
-		
+
+		Mat mapgrid(GLOBAL_GRID_SIZE,GLOBAL_GRID_SIZE,CV_8UC1,g_grid);
+		namedWindow( "Display window", WINDOW_AUTOSIZE );// Create a window for display.
+   		Mat invgrid;
+   		bitwise_not ( mapgrid, invgrid ); //(, invgrid, 0, 255, CV_THRESH_BINARY_INV);
+   		Mat colorgrid;
+   		cv::cvtColor(invgrid, colorgrid, cv::COLOR_GRAY2BGR);
+
+   		// inverted axes for robot position
+   		int py = (int)(robot.pos.x / 0.05) + GLOBAL_GRID_MAX_RANGE;
+   		int px = (int)(robot.pos.y / 0.05) + GLOBAL_GRID_MAX_RANGE;
+   		circle(colorgrid, Point(px,py), 5, 0x00FFFF, -1);
+   		Mat newgrid;
+   		resize(colorgrid, newgrid, cvSize(1280, 720));
+
+   		imshow( "Display window", newgrid );                   // Show our image inside it.
+
+  		waitKey(1); 	
 	}
 
 	//post_process_grid_erode(g_grid, pp_grid, GLOBAL_GRID_SIZE);

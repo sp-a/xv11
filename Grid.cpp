@@ -111,17 +111,20 @@ void update_map(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int g_range,
 	for (int x = -l_range; x < l_range; ++x)
 	{	
 		for(int y = -l_range; y < l_range ; ++y)
+		{
+			int tx = roundf(cos_lut[degrees] * x - sin_lut[degrees] * y);
+			int ty = roundf(sin_lut[degrees] * x + cos_lut[degrees] * y);
+
 			if (l_grid[x + l_range][y + l_range] == 1)
 			{
-				int tx = roundf(cos_lut[degrees] * x - sin_lut[degrees] * y);
-				int ty = roundf(sin_lut[degrees] * x + cos_lut[degrees] * y);
 				if (rx + tx < 0 || rx + tx >= g_size || ry + ty < 0 || ty + ty >= g_size);
 				else
 				{	
-					if (g_grid[rx + tx][ry + ty] < 255-16)
+					if (g_grid[rx + tx][ry + ty] <= 255-16)
 						g_grid[rx + tx][ry + ty] += 16;
 				}
 			}
+		}
 	}
 }
 
@@ -168,7 +171,7 @@ int compute_grid_diff(uint8_t l_grid[LOCAL_GRID_SIZE][LOCAL_GRID_SIZE], int l_ra
 		if (x < 0 || x > l_size || y < 0 || y > l_size)
 			sum++;
 		else
-			if (l_grid[x][y] >= 1)
+			if (l_grid[x][y] >= 16)
 			{
 				sum -= l_grid[x][y];
 				count++;
