@@ -2,11 +2,15 @@
 #ifndef _CUSTOM_TYPES_H_
 #define _CUSTOM_TYPES_H_
 
-#include "Eigen/Dense"
+// #include "Eigen/Dense"
 #include <stdint.h>
 #include <list>
+#include "stdlib.h"
+#include "math.h"
+#include "string.h"
+#include <stdio.h>
 
-using namespace Eigen;
+// using namespace Eigen;
 using namespace std;
 
 #define DEGREES_TO_RADIAN 0.0174532925
@@ -31,9 +35,11 @@ using namespace std;
 #define MAX_DB_FEATURES  	 (8*1024)
 #define MAX_NEW_SEGMENTS     64
 
-#define LOCAL_GRID_MAX_RANGE 200
+#define LOCAL_GRID_MAX_RANGE 150
+#define PADDING_SIZE 10
 #define LOCAL_GRID_SIZE (LOCAL_GRID_MAX_RANGE * 2 + 1)
-#define GLOBAL_GRID_MAX_RANGE 1000
+#define LOCAL_GRID_PADDED_SIZE (LOCAL_GRID_SIZE + 2 * PADDING_SIZE)
+#define GLOBAL_GRID_MAX_RANGE 500
 #define GLOBAL_GRID_SIZE (GLOBAL_GRID_MAX_RANGE * 2 + 1)
 
 
@@ -65,25 +71,25 @@ typedef struct point {
 	int age;
 }point_t;
 
-typedef struct {
-	float range, bearing;
+// typedef struct {
+// 	float range, bearing;
 
-	float getRange()
-	{
-		return range;
-	}
+// 	float getRange()
+// 	{
+// 		return range;
+// 	}
 
-	float getLocalX()
-	{
-		return range * cos(bearing);
-	}
+// 	float getLocalX()
+// 	{
+// 		return range * cos(bearing);
+// 	}
 
-	float getLocalY()
-	{
-		return range * sin(bearing);
-	}
+// 	float getLocalY()
+// 	{
+// 		return range * sin(bearing);
+// 	}
 
-}observation_t;
+// }observation_t;
 
 typedef struct {
 	point_t middle;

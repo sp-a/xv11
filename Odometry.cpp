@@ -1,6 +1,9 @@
 
 #include "Odometry.h"
 #include "Geometry.h"
+#include "iostream"
+
+using namespace std;
 
 static int o_index;
 static int num_samples;
@@ -14,6 +17,49 @@ void initializeOdometry(robot_state_t *robot, odometry_t *odometry, int n_sample
 	o_index = 0;
 	odometry_data = odometry;
 	num_samples = n_samples;
+}
+
+void getCurrentOdometry(robot_state_t *robot, float time, float *odom)
+{
+	odom[0] = 0;
+	odom[1] = 0;
+	odom[2] = 0;
+
+	if (o_index == 0)
+	{
+		o_index++;
+	}
+	else
+	{
+		while (o_index < num_samples && odometry_data[o_index].ts < time)
+		{
+
+			float v = odometry_data[o_index].tv;
+			float w = odometry_data[o_index].rv;
+			float dt = odometry_data[o_index].ts - robot->ts;
+			float Q = robot->Q;
+
+			if (w)
+			{
+				odom[0] += -v / w*sin(Q) + v / w*sin(Q + w*dt);
+				odom[1] += v / w*cos(Q) - v / w*cos(Q + w*dt);
+				odom[2] += w*dt;
+			}
+			else
+			{
+				odom[0] += v*dt * cos(Q);
+				odom[1] += v*dt * sin(Q);
+				odom[2] += 0;
+			}
+
+			// printf("%d: v %f w %f dt %f\n",o_index,  v, w, dt);
+			// printf("odom: %f %f %f\n" , odom[0], odom[1], odom[2]);
+			// printf("robot.Q: %f\n" , robot->Q);
+
+			robot->ts = odometry_data[o_index].ts;
+			o_index ++;
+		}
+	}
 }
 
 void evolve(robot_state_t *robot, float time)

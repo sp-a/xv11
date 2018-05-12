@@ -1,5 +1,7 @@
 #include "Association.h"
 #include "Geometry.h"
+#include "math.h"
+#include <stdlib.h> 
 
 void match_segments(segment_t *new_sg, int num_new_sg, segment_t *old_sg,
 	int num_old_sg, int *match, float *inn, robot_state_t robot)

@@ -1,7 +1,10 @@
 #include "Detect.h"
 #include "Geometry.h"
 #include <iostream>
-#include <math.h>
+#include <cmath>
+#include <stdlib.h> 
+#include "string.h"
+#include "assert.h"
 
 using namespace std;
 

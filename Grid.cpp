@@ -21,23 +21,49 @@ void get_local_ocupancy_grid(point_t *data, int num_data, uint8_t grid[LOCAL_GRI
 	int max_index = size * size;
 	for (int i = 0; i < size; ++i)
 		for(int j = 0 ; j < size; ++j)
-			grid[i][j] = 0; // unknown
+			grid[i][j] = 128; // unknown
 
 	for (int i = 0; i < num_data; ++i)
 	{
-		data[i].x = roundf(data[i].x / step);
-		data[i].y = roundf(data[i].y / step);
-		int x = (int)data[i].x + grid_size;
-		int y = (int)data[i].y + grid_size;
+		// data[i].x = roundf(data[i].x / step);
+		// data[i].y = roundf(data[i].y / step);
+		int x = (int)roundf(data[i].x / step) + grid_size;
+		int y = (int)roundf(data[i].y / step) + grid_size;
 
 		if (x > size || y > size)
 			continue;
-		grid[x][y] = 1;
+
+		grid[x][y] = 255; // occupied
+
+		// Mark all cell in between as free cells
+		// How many points on the line?
+		int num_p = (int)sqrt( data[i].x * data[i].x + data[i].y * data[i].y) / step;
+		//printf("num_p: %d %f %f\n" , num_p, data[i].x, data[i].y);
+		// A(0, 0), B(data[i].x, data[i].y)
+		for(int k1 = 1; k1 < num_p ; ++k1 )
+		{
+			int x = (int)roundf(k1 * data[i].x / (num_p * step)) + grid_size;
+			int y = (int)roundf(k1 * data[i].y / (num_p * step)) + grid_size;
+
+
+			grid[x][y] = 0; // free
+			//printf("(%d,%d) ", x, y);
+		}
+		//printf("\n");
 	}
+
+	for(int i = 1 ; i < size - 1 ; ++i )
+		for(int j = 1; j < size - 1; ++j )
+		{
+			if(grid[i][j] != 128) continue; // only unknown cells
+			if(grid[i-1][j] == 0 && grid[i+1][j] == 0 && 
+			   grid[i-1][j] == 0 && grid[i+1][j] == 0)
+					grid[i][j] = 0; // mark as free
+		}
 }
 
 void extract_local_grid(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int g_range,
-	uint8_t l_grid[LOCAL_GRID_SIZE][LOCAL_GRID_SIZE], int l_range,
+	uint8_t l_grid[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], int l_range,
 						float angle, int rx, int ry)
 {
 	int degrees = (int)(angle * RADIAN_TO_DEGREE);
@@ -56,7 +82,7 @@ void extract_local_grid(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int 
 			int ty = roundf(sin_lut[degrees] * x + cos_lut[degrees] * y);
 
 			if (rx + tx < 0 || rx + tx >= g_size || ry + ty < 0 || ty + ty >= g_size)
-				l_grid[x + l_range][y + l_range] = 0;
+				l_grid[x + l_range][y + l_range] = 128;
 			else
 				l_grid[x + l_range][y + l_range] = g_grid[rx + tx][ry + ty];
 		}
@@ -79,17 +105,20 @@ int extract_local_points(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int
 	{
 		for (int y = -l_range; y < l_range; ++y)
 		{
-			int tx = roundf(cos_lut[degrees] * x - sin_lut[degrees] * y);
-			int ty = roundf(sin_lut[degrees] * x + cos_lut[degrees] * y);
+			int tx = roundf(cos(angle) * x - sin(angle) * y);
+			int ty = roundf(sin(angle) * x + cos(angle) * y);
 
 			if (rx + tx < 0 || rx + tx >= g_size || ry + ty < 0 || ty + ty >= g_size)
 				;
 			else
 			{
-				//l_grid[x + l_range][y + l_range] = g_grid[rx + tx][ry + ty];
-				points[num_points].x = tx;
-				points[num_points].y = ty;
-				num_points++;
+				if(g_grid[rx + tx][ry + ty] >= 240)
+				{
+					//l_grid[x + l_range][y + l_range] = g_grid[rx + tx][ry + ty];
+					points[num_points].x = tx;
+					points[num_points].y = ty;
+					num_points++;
+				}
 			}
 		}
 	}
@@ -115,15 +144,12 @@ void update_map(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int g_range,
 			int tx = roundf(cos_lut[degrees] * x - sin_lut[degrees] * y);
 			int ty = roundf(sin_lut[degrees] * x + cos_lut[degrees] * y);
 
-			if (l_grid[x + l_range][y + l_range] == 1)
-			{
-				if (rx + tx < 0 || rx + tx >= g_size || ry + ty < 0 || ty + ty >= g_size);
-				else
-				{	
-					if (g_grid[rx + tx][ry + ty] <= 255-16)
-						g_grid[rx + tx][ry + ty] += 16;
-				}
-			}
+
+			int val = l_grid[x + l_range][y + l_range];
+			if(val == 0  && g_grid[rx + tx][ry + ty] > 8 && g_grid[rx + tx][ry + ty] < 160)
+				g_grid[rx + tx][ry + ty] -= 8;
+			if(val == 255  && g_grid[rx + tx][ry + ty] < 255 - 16)
+				g_grid[rx + tx][ry + ty] += 16;
 		}
 	}
 }
@@ -188,28 +214,48 @@ int compute_grid_diff(uint8_t l_grid[LOCAL_GRID_SIZE][LOCAL_GRID_SIZE], int l_ra
 
 point_t temp_points[LOCAL_GRID_SIZE*LOCAL_GRID_SIZE];
 void scan_to_map(uint8_t l_grid[LOCAL_GRID_SIZE][LOCAL_GRID_SIZE], int l_range,
-	point_t *points, int num_points, int *angle, int *rx, int *ry, int *cost, int *matches)
+	uint8_t g_grid[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], int g_range, int *angle, int *rx, int *ry, int *cost, int *matches)
 {
 	int best_cost = 0x1FFFFFFF;
 	int best_dx, best_dy, best_dangle, best_matches;
-	int init_cost = 0;
-
-	for (int i = 0; i < LOCAL_GRID_SIZE; ++i)
-		for (int j = 0; j < LOCAL_GRID_SIZE; ++j)
-			init_cost += l_grid[i][j];
-
+	int l_size = 2 * l_range + 1;
+	int g_size = 2 * g_range + 1;
+	
 	for (int dx = 0; dx <= 3 ; )
 	{
 		for (int dy = 0; dy <= 3; )
 		{
-			for (int dangle = 0; dangle <= 20; )
+			for (int dangle = 0; dangle <= 10; )
 			{
-				//memset(temp_grid, 0, sizeof(temp_grid));
-				//transform_grid(l_grid, temp_grid, LOCAL_GRID_MAX_RANGE, dangle, dx, dy);
-				transform_points(points, num_points, temp_points, dangle, dx, dy);
-				int matches;
-				int cost = compute_grid_diff(l_grid, LOCAL_GRID_MAX_RANGE, temp_points, num_points, init_cost, &matches);
-				//printf("transform: %d %d %d cost %d\n", dangle, dx, dy, cost);
+				int cost = 0;
+				int matches = 0;
+
+				for(int i = 0 ; i < l_size ; ++i )
+					for(int j = 0; j < l_size ; ++j)
+					{
+						if(l_grid[i][j] == 128)continue;
+
+						int wx = cos_lut[dangle] * i - sin_lut[dangle] * j + dx + g_range;
+						int wy = sin_lut[dangle] * i + cos_lut[dangle] * j + dy + g_range;
+						
+
+						if(wx < 0 || wx >= g_size || wy < 0 || wy > g_size)
+						{
+							//printf("wx: %d wy: %d i: %d j: %d\n", wx, wy, i, j);
+							//printf("dx:%d dy %d dangle %d\n" , dx, dy, dangle);
+							cost += 128;
+						}
+
+						int k;
+						if(l_grid[i][j] == 255)
+						{
+							k = 4;
+							if(g_grid[wx][wy] > 160)
+								matches ++;
+						}
+						else k = 1;
+						cost += abs(l_grid[i][j] - g_grid[wx][wy]) * k;
+					}
 
 				if (cost < best_cost)
 				{
@@ -218,7 +264,7 @@ void scan_to_map(uint8_t l_grid[LOCAL_GRID_SIZE][LOCAL_GRID_SIZE], int l_range,
 					best_dy = dy;
 					best_dangle = dangle;
 					best_matches = matches;
-					//printf("transform: %d %d %d cost %d %d %d\n", dangle, dx, dy, init_cost, cost, matches);
+					printf("transform: %d %d %d cost %d\n", dangle, dx, dy, cost);
 				}
 
 				dangle = -dangle;
