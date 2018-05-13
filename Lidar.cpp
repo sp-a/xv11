@@ -41,7 +41,7 @@ int convertLidarToSamplePoint(lidar_t lidar, point_t* points, int max_num_sample
 
 	for (int i = 0; i < lidar.num_readings; ++i)
 	{
-		if (lidar.data[i] >= 20)
+		if (lidar.data[i] >= 60)
 			continue;
 
 		point_t new_point;
