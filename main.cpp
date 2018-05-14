@@ -69,6 +69,9 @@ double angle_diff(double a, double b)
 
 int main()
 {
+
+	readFromSerialPort("/dev/ttyACM0");
+
 	FeatureDetector detect(10, 30, (float)0.01, 50);
 
 	int num_odometry_samples = readOdometryFromFile(odometry, MAX_ODOMETRY_SAMPLES);
