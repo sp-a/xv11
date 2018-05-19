@@ -116,8 +116,8 @@ int FeatureDetector::ransac(point_t *data, int num_points,  ransac_result_t *res
 			float dist = abs(norm_vec_x * dx + norm_vec_y * dy);
 			if (dist < this->thresh_dist)
 			{
-				if (num_inliers >= 1 && distance(curr, prev) > 0.2) 
-					break;
+				if (num_inliers >= 1 && distance(curr, prev) > 1) 
+				 	break;
 
 				num_inliers++;
 				temp_mask[i] = 1;

@@ -5,6 +5,7 @@
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+ #include <sys/time.h>
 
 static const char* logFile = "dataset.log";
 
@@ -32,7 +33,7 @@ set_interface_attribs (int fd, int speed, int parity)
                                         // no canonical processing
         tty.c_oflag = 0;                // no remapping, no delays
         tty.c_cc[VMIN]  = 0;            // read doesn't block
-        tty.c_cc[VTIME] = 50;            // 0.5 seconds read timeout
+        tty.c_cc[VTIME] = 5;            // 0.5 seconds read timeout
 
         tty.c_iflag &= ~(IXON | IXOFF | IXANY); // shut off xon/xoff ctrl
 
@@ -42,6 +43,12 @@ set_interface_attribs (int fd, int speed, int parity)
         tty.c_cflag |= parity;
         tty.c_cflag &= ~CSTOPB;
         tty.c_cflag &= ~CRTSCTS;
+
+		tty.c_lflag     &=  ~(ICANON | ECHO | ECHOE | ISIG); // make raw
+		tty.c_oflag     &=  ~OPOST;              // make raw
+
+		/* Flush Port, then applies attributes */
+		tcflush( fd, TCIFLUSH );
 
         if (tcsetattr (fd, TCSANOW, &tty) != 0)
         {
@@ -63,7 +70,7 @@ set_blocking (int fd, int should_block)
         }
 
         tty.c_cc[VMIN]  = should_block ? 1 : 0;
-        tty.c_cc[VTIME] = 10;            // 0.5 seconds read timeout
+        tty.c_cc[VTIME] = 5;            // 0.5 seconds read timeout
 
         if (tcsetattr (fd, TCSANOW, &tty) != 0)
                 printf ("error %d setting term attributes", errno);
@@ -262,121 +269,216 @@ void dump_ocupancy_map(uint8_t *grid, int grid_size, const char *filename)
 	fclose(f);
 }
 
-void readFromSerialPort(const char *devname)
+static void readSensor(int fd, uint8_t *buf, int  size, int filter)
 {
-	
+	int bytes = 0;
+	uint8_t *ptr = buf;
+	do
+	{
+		int rd =  read (fd, ptr + bytes, size-bytes);
+		if(filter)
+		{
+			int count = 0;
+			for(int i = 0; i < rd ; ++i )
+			 	if(*(ptr + bytes + i) != 0xFF)
+			 		*(ptr + bytes + count ++) = *(ptr + bytes + i);
+			rd = count;
+		}
+		ptr += rd;
+		bytes += rd;
+	}while(bytes < size);
+}
+
+#include <string.h>
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/highgui/highgui.hpp"
+using namespace cv;
+float dists[360];
+uint8_t smap[500][500];
+void showmap()
+{
+	int count = 0;
+	memset(smap, 0 , sizeof(smap));
+	for(int i = 0; i < 360; ++i )
+	{
+		if(dists[i] == 0 || dists[i] > 10.0) continue;
+		float angle  = (float)i * DEGREES_TO_RADIAN;
+		float x = cos(angle) * dists[i];
+		float y = sin(angle) * dists[i];
+
+		int dx = (int)roundf(x / 0.05) + 250;
+		int dy = (int)roundf(y / 0.05) + 250;
+		smap[dx][dy] = 255;
+		count ++;
+		// printf("dx %d dy %d\n", dx , dy);	
+	}
+
+	   	Mat gmap(500, 500, CV_8UC1, smap);
+		namedWindow( "Global map", WINDOW_AUTOSIZE );// Create a window for display.
+   		Mat invgmap, szgmap;
+   		bitwise_not ( gmap, invgmap ); //(, invgrid, 0, 255, CV_THRESH_BINARY_INV);
+   		resize(invgmap, szgmap, cvSize(1280, 720));
+   		imshow( "Global map" , szgmap );
+   		printf("%d points detected!\n", count);
+
+   		waitKey(1); 
+}
+
+int checksum(uint8_t *data)
+{
+	int temp;
+	int chk32 = 0;
+
+	for(int i = 0; i < 10; i++)
+	{
+		temp = data[2*i] + ((int)data[2*i+1] << 8);
+		chk32 = (chk32 << 1) + temp;
+	}
+
+	printf("chk32: %x\n", chk32);
+
+	int checksum = (chk32 & 0x7FFF) + ( chk32 >> 15 ); //  wrap around to fit into 15 bits
+    checksum = checksum & 0x7FFF; // truncate to 15 bits
+
+    return checksum;
+}
+
+int openSerialPort(const char *devname)
+{
 	int fd = open (devname, O_RDWR | O_NOCTTY | O_SYNC);
 	if (fd < 0)
 	{
 	        printf ("error %d opening %s: %s", errno, devname, strerror (errno));
-	        return;
+	        return fd;
 	}
+	printf("file descriptor: %d\n", fd);
 
 	set_interface_attribs (fd, B115200, 0);  // set speed to 115,200 bps, 8n1 (no parity)
 	set_blocking (fd, 1);                // set no blocking
 
-	// uint8_t byte;
+	return fd;
+}
 
-	// while(1){
-	// 	int n = read (fd, &byte, 1);
-	// 	if(byte == 0xfa)
-	//    		 printf("\n");
-	// 	printf("0x%2x ", byte);
-	// }
-	// write (fd, "hello!\n", 7);           // send 7 character greeting
+uint8_t imu[16];
+uint8_t packet[24];
+uint64_t imu_ts = 0;
 
-	// usleep ((7 + 25) * 100);             // sleep enough to transmit the 7 plus
-	                                     // receive 25:  approx 100 uS per char transmit
-	uint8_t byte;
-	uint8_t array[16];
-	int init_level = 0;
+uint64_t GetTimeStamp() {
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+    return tv.tv_sec*(uint64_t)1000000+tv.tv_usec;
+}
+
+
+int readFromSerialPort(int fd)
+{	
 	int speed, index;
-	int data[4];
+	int previndex = 0, init_level = 0;
 	while(1)
 	{
 		
 		if (init_level == 0 )
 		{
-               int n = read (fd, &byte, 1);
-               if( n == 1 && byte == 0xFA ) 
+               readSensor(fd, &packet[0], 1, 1);
+
+               if(packet[0] == 0xFA ) 
                    init_level = 1;
                else
+               {
+               	   if(packet[0] == 0xfb)
+               	   {
+               	   		uint8_t check;
+               	   		readSensor(fd, &check, 1, 0);
+               	   		if(check == 0xcd){
+               	   			imu_ts  =GetTimeStamp();
+	               	   	    // printf("imu read!\n");
+
+	               	   	    // force split ???
+	               	   		readSensor(fd, &imu[0], 2, 0);
+	               	   		readSensor(fd, &imu[2], 2, 0);
+	               	   		readSensor(fd, &imu[4], 2, 0);
+	               	   		readSensor(fd, &imu[6], 2, 0);
+	               	   		readSensor(fd, &imu[8], 2, 0);
+	               	   		readSensor(fd, &imu[10], 2, 0);
+
+	               	   		 return 1;
+               	   	}
+               	   }
                    init_level = 0;
+               }
         }
         else if (init_level == 1)
         {
-        		int n = read (fd, &byte, 1);
+        		readSensor(fd, &packet[1], 1, 1);
+
                 // position index 
-                if(n == 1 && byte >= 0xA0 && byte <= 0xF9 ) 
+                if(packet[1] >= 0xA0 && packet[1] <= 0xF9 ) 
                 {
-                    index = byte - 0xA0;
+                    index = packet[1] - 0xA0;
                     init_level = 2;
                 }
                 else
                 {
-                	printf("bad index!!!!\n");
+                	printf("bad index: 0x%x\n", packet[1]);
                     init_level = 0;
                 }
         } else if (init_level == 2)
         {
                 // speed
-        		int n = read (fd, array, 2);
-        		if(n == 2)
+        		readSensor(fd, &packet[2], 2,  1);
         		{
-                	speed = ((int)array[1] << 8) | array[0];
-                	printf("speed: %f RPM\n", (float)speed / 64);
+                	speed = ((int)packet[3] << 8) | packet[2];
+                    //printf("speed: %f RPM %x\n", (float)speed / 64, speed);
         		}
-                else
-                {
-                	 init_level = 0;
-                	 continue;
-                } 
                 
-                n = read (fd, array, 16);
+                
                 // data
-                if(n == 16)
                 {
                 	for(int i = 0; i < 4 ; ++i )
                 	{
-                		data[i] = ((int)(0x3f & array[i*4 + 1])) | array[i*4];
-                		if(array[i*4 + 1] & 0x40)
+                		readSensor(fd, &packet[4 + 4 * i], 2, 1);
+                		int data = (packet[4 + 4 * i] | ((int)(packet[4 + 4*i + 1] & 0x3f )<< 8));
+
+                		if(data & 0x4000)
+                		{
                 			printf("warning! ");
-                		if(array[i*4 + 1] & 0x80)
-                		{
-                			printf("error code: 0x%x!\n", array[i*4]);
-
+                			continue;
                 		}
-                		else
+                		if(data & 0x8000)
                 		{
-
-                			printf("angle: %d  dist %f \n", index * 4 + i, (float)data[i]/1000 );
+                			printf("error code: 0x%x!\n", data & 0xFF);
+                			continue;
                 		}
+
+                		// printf("data: %x\n", data);
+                		dists[index * 4 + i] =  (float)data/1000;
+
+                		// intensity
+                		readSensor(fd, &packet[4 + 4 * i + 2], 2, 1);
                 	}
 				}
-				else
-                {
-                	 printf("bad data!\n");
-                	 init_level = 0;
-                	 continue;
-                } 
 
                 // checksum
-                n = read (fd, array, 2);
-                if(n != 2)
-                	printf("bad checksum!\n");
+                readSensor(fd, &packet[20], 2, 1);
+                int check = packet[20] |( (int)packet[21] << 8);
 
-                // # for the checksum, we need all the data of the packet...
-                // # this could be collected in a more elegent fashion... 
-                // all_data = [ 0xFA, index+0xA0 ] + b_speed + b_data0 + b_data1 + b_data2 + b_data3 
-
-                // # checksum  
-                // b_checksum = [ ord(b) for b in ser.read(2) ]
-                // incoming_checksum = int(b_checksum[0]) + (int(b_checksum[1]) << 8)
+               	// if(check == checksum(packet))
+               	// 	printf("checksum ok!\n");
+               	// else
+               	// 	printf("checksum error 0x%x vs 0x%x, 0x%x, 0x%x!\n", checksum(packet), check, packet[21], packet[20]);
 
                 init_level = 0;
+
+                if(index < previndex)
+                {
+                	previndex = index;
+                	return 0;
+                }
+                previndex = index;
         }
 
 	// 	if(n <= 0)
 	// 		printf("read error!\n");
 	}
+	return 0;
 }

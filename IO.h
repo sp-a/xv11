@@ -19,5 +19,7 @@ void dumpSegmentsToFile(segment_t *segments, int num_features, const char*, int)
 void dumpStateToFile(robot_state_t *robot, const char *filename, int id);
 
 void dump_ocupancy_map(uint8_t *grid, int grid_size, const char *filename);
-void readFromSerialPort(const char *devname);
+
+int openSerialPort(const char *devname);
+int readFromSerialPort(int fd);
 #endif

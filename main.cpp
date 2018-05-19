@@ -66,12 +66,8 @@ double angle_diff(double a, double b)
 	return min(abs(q1-q2), abs(q1 + 2 * PI -q2));
 }
 
-
-int main()
+void runOnDataset()
 {
-
-	readFromSerialPort("/dev/ttyACM0");
-
 	FeatureDetector detect(10, 30, (float)0.01, 50);
 
 	int num_odometry_samples = readOdometryFromFile(odometry, MAX_ODOMETRY_SAMPLES);
@@ -131,7 +127,7 @@ int main()
 
 			float dangle, dx, dy, residual;
 			// scan_to_map(l_points, temp_points, data_points, num_points, &dangle, &dx, &dy, &cost, &matches);
-			 scan_to_map(l_grid, LOCAL_GRID_MAX_RANGE + PADDING_SIZE, data_points, num_points,
+			scan_to_map(l_grid, LOCAL_GRID_MAX_RANGE + PADDING_SIZE, data_points, num_points,
 			 	 		&dangle, &dx, &dy, &residual);
 			// // dangle *= 0.05;
 			dx *= 0.05;
@@ -302,6 +298,218 @@ int main()
 	cout << "Done!" << endl;
 	int wait;
 	cin >> wait;
+}
+
+volatile extern uint8_t imu[16];
+volatile extern float dists[360];
+volatile extern uint64_t imu_ts;
+uint64_t imu_prev_ts = 0;
+float pvx = 0, pvy = 0;
+int imu_count = 0;
+void runWithSensors()
+{
+	int fd = openSerialPort("/dev/ttyACM2");
+	int num_segments = 0;
+	assert(fd >= 0);
+	robot_state_t robot;
+
+	robot.Q = 0;
+	robot.pos.x = 0;
+	robot.pos.y = 0;
+
+	memset(g_grid, 128,  sizeof(g_grid));
+	FeatureDetector detect(10, 30, (float)0.03, 50);
+	
+	while(1)
+	{
+		int type = readFromSerialPort(fd);
+		if(type == 0)
+		{
+			// printf("lidar data available!\n");
+			int num_points = 0;
+			for(int i = 0; i < 360; ++i )
+			{
+				if(dists[i] == 0 || dists[i] > 6) continue;
+
+				float angle  = (float)i * DEGREES_TO_RADIAN;
+				float x = cos(angle) * dists[i];
+				float y = sin(angle) * dists[i];
+
+				data_points[num_points].x = x;
+				data_points[num_points].y = y;
+				num_points ++;
+			}
+			get_local_ocupancy_grid(data_points, num_points, grid, 0.05, LOCAL_GRID_MAX_RANGE);
+
+			if(1)
+			{
+				num_segments = detect.extractSegmentsRansac(segments,
+					data_points,
+					num_points);
+				num_segments = detect.filterSegments(segments, num_segments, PI / 3, 0.5);
+
+				// Add new features
+				for (int i = 0; i < num_segments; ++i)
+					if (match_sg[i] == -1)
+					{
+						segments[i].age = 0;
+						sg_db[num_sg_db++] = segments[i];
+					}
+
+				// printf("num points: %d\n", num_points);
+				// printf("num segments: %d\n" , num_segments);
+
+			}
+			else
+			{
+
+				float angle = robot.Q;
+				int rx = (int)roundf(robot.pos.x / 0.05);
+				int ry = (int)roundf(robot.pos.y / 0.05);
+				extract_local_grid(g_grid, GLOBAL_GRID_MAX_RANGE, l_grid, LOCAL_GRID_MAX_RANGE + PADDING_SIZE,
+				 				   angle, rx, ry);
+				// int temp_points = extract_local_points(g_grid, GLOBAL_GRID_MAX_RANGE, l_points,
+				// 						 LOCAL_GRID_MAX_RANGE + PADDING_SIZE, angle, rx, ry);
+
+				float dangle, dx, dy, residual;
+				// scan_to_map(l_points, temp_points, data_points, num_points, &dangle, &dx, &dy, &cost, &matches);
+				 scan_to_map(l_grid, LOCAL_GRID_MAX_RANGE + PADDING_SIZE, data_points, num_points,
+				 	 		&dangle, &dx, &dy, &residual);
+				// // dangle *= 0.05;
+				dx *= 0.05;
+				dy *= 0.05;
+
+				printf("                  update: %f %f %f %f \n", dx, dy,dangle, residual);
+
+				if (1)
+				{
+					
+				  	robot.Q += dangle;
+					robot.pos.x += 0 ;
+					robot.pos.y += 0 ;
+				}
+			
+
+				while(robot.Q > 2* PI)
+			 		robot.Q -= 2 * PI;
+				while(robot.Q <  0)
+			 		robot.Q += 2 * PI;
+			}
+			// memset(g_grid, 128, sizeof(g_grid));
+			update_map(g_grid, GLOBAL_GRID_MAX_RANGE, grid, LOCAL_GRID_MAX_RANGE,
+					   robot.Q, roundf(robot.pos.x / 0.05), roundf(robot.pos.y / 0.05));
+                                       // Wait for a keystroke in the window
+
+			Mat lmap(LOCAL_GRID_PADDED_SIZE, LOCAL_GRID_PADDED_SIZE,CV_8UC1,l_grid);
+			namedWindow( "Local map", WINDOW_AUTOSIZE );// Create a window for display.
+	   		Mat invlmap, szlmap;
+	   		bitwise_not ( lmap, invlmap ); //(, invgrid, 0, 255, CV_THRESH_BINARY_INV);
+	   		resize(invlmap, szlmap, cvSize(640, 480));
+	   		imshow( "Local map" , szlmap );                   // Show our image inside it.
+
+	   		Mat scan(LOCAL_GRID_SIZE, LOCAL_GRID_SIZE, CV_8UC1, grid);
+			namedWindow( "Scan", WINDOW_AUTOSIZE );// Create a window for display.
+	   		Mat invscan, szscan;
+	   		bitwise_not ( scan, invscan ); //(, invgrid, 0, 255, CV_THRESH_BINARY_INV);
+	   		Mat colorgrid;
+	   		cv::cvtColor(invscan, colorgrid, cv::COLOR_GRAY2BGR);
+
+	   		// {
+	   		//  // inverted axes for robot position
+	   		
+	   		// int py = (int)(robot.pos.x / 0.05) + LOCAL_GRID_MAX_RANGE;
+	   		// int px = (int)(robot.pos.y / 0.05) + LOCAL_GRID_MAX_RANGE;
+	   		// circle(colorgrid, Point(px,py), 5, 0x00FFFF, -1);
+	   		// }
+
+	   		for(int i = 0 ; i < num_segments ; ++i )
+	   		{
+	   			int py0 = (int)(segments[i].edges[0].x / 0.05) + LOCAL_GRID_MAX_RANGE;
+	   			int px0 = (int)(segments[i].edges[0].y / 0.05) + LOCAL_GRID_MAX_RANGE;
+	   			int py1 = (int)(segments[i].edges[1].x / 0.05) + LOCAL_GRID_MAX_RANGE;
+	   			int px1 = (int)(segments[i].edges[1].y / 0.05) + LOCAL_GRID_MAX_RANGE;
+	   			line(colorgrid, Point(px0,py0), Point(px1,py1), 0x88, 2);
+	   		}
+	   		resize(colorgrid, szscan, cvSize(1280, 720));
+	   		imshow( "Scan" , szscan );                   // Show our image inside it.
+
+	   		Mat gmap(GLOBAL_GRID_SIZE, GLOBAL_GRID_SIZE, CV_8UC1, g_grid);
+			namedWindow( "Local map", WINDOW_AUTOSIZE );// Create a window for display.
+	   		Mat invgmap, szgmap;
+	   		bitwise_not ( gmap, invgmap ); //(, invgrid, 0, 255, CV_THRESH_BINARY_INV);
+	   		colorgrid;
+	   		cv::cvtColor(invgmap, colorgrid, cv::COLOR_GRAY2BGR);
+	   		{
+	   		 // inverted axes for robot position
+	   		int py = (int)(robot.pos.x / 0.05) + GLOBAL_GRID_MAX_RANGE;
+	   		int px = (int)(robot.pos.y / 0.05) + GLOBAL_GRID_MAX_RANGE;
+	   		circle(colorgrid, Point(px,py), 5, 0x00FFFF, -1);
+	   		resize(colorgrid, szgmap, cvSize(1280, 720));
+	   		}
+	   		imshow( "Global map" , szgmap );                   // Show our image inside it.
+	   		// Mat colorgrid;               // Show our image inside it.
+	   		waitKey(1); 	
+		}
+		else
+		{
+			if(imu_prev_ts == 0)
+				imu_prev_ts = imu_ts;
+
+			imu_count ++;
+
+			// printf("imu data available!\n");
+  	   		int16_t ax = ((int16_t)imu[0] << 8) | imu[1];
+	        float accx = (float) ax / 8192;
+	        int16_t ay = ((int16_t)imu[2] << 8) | imu[3];
+	        float accy = (float) ay / 8192;
+	        int16_t az = ((int16_t)imu[4] << 8) | imu[5];
+	        float accz = (float) az / 8192;
+	        float acc = sqrt(accx*accx + accy*accy + accz*accz);
+
+	        int16_t gx = ((int16_t)imu[6] << 8) | imu[7];
+	        int16_t gy = ((int16_t)imu[8] << 8) | imu[9];
+	        int16_t gz = ((int16_t)imu[10] << 8) | imu[11];
+
+	        float  dt = (float)(imu_ts - imu_prev_ts) / 1000000; // sec
+	        accx *= 9.80665; // m/s^2
+	        accy *= 9.80665; // m/s^2
+	        accz *= 9.80665; // m/s^2
+
+
+
+	        float dq = (float)gz / 16.4 * 0.0174532925 * dt * 3; // radians
+	        // printf("dq: %f\n", dq);
+	        robot.Q += dq;
+	        float nax = accx * cos(robot.Q) - accy * sin(robot.Q);
+	        float nay = accy * sin(robot.Q) + accy * cos(robot.Q);
+
+	        float vx = nax * dt;
+	        float vy = nay * dt;
+
+	        //if(abs(ax) > 200 || abs(ay) > 200)
+	        {
+	        	robot.pos.x += pvx * dt + 0.5 * nax * dt * dt;
+	        	robot.pos.y += pvy * dt + 0.5 * nay * dt * dt;
+	    	}
+
+	        pvx = vx;
+	        pvy = vy;
+
+	        // for(int i = 0; i < 6 ; ++i )
+	        // 	printf("0x%x%x ", imu[2*i], imu[2*i+1]);
+	        // printf("\n");
+	        // printf("ax: %d ay: %d az: %d gx: %d gy: %d gz: %d acc: %f delta %lu\n",
+	        //  		ax, ay, az, gx, gy, gz, acc, imu_ts - imu_prev_ts);
+	        imu_prev_ts = imu_ts;
+		}
+
+		// printf("---------------------- x %f y %f q %f\n" , robot.pos.x, robot.pos.y, robot.Q * 57.2957795);
+	}
+}
+
+int main()
+{
+	runWithSensors();
 
 	return 0;
 }

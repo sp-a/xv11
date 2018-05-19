@@ -27,16 +27,16 @@ void init_trig_lut()
 void get_local_ocupancy_grid(point_t *data, int num_data, uint8_t grid[LOCAL_GRID_SIZE][LOCAL_GRID_SIZE],
 							 float step, int grid_size)
 {
+	// Initialize local grid with unknown state
 	int size = grid_size * 2 + 1;
 	int max_index = size * size;
 	for (int i = 0; i < size; ++i)
 		for(int j = 0 ; j < size; ++j)
 			grid[i][j] = 128; // unknown
 
+	// Mark all current occupied cells
 	for (int i = 0; i < num_data; ++i)
 	{
-		// data[i].x = roundf(data[i].x / step);
-		// data[i].y = roundf(data[i].y / step);
 		int x = (int)roundf(data[i].x / step) + grid_size;
 		int y = (int)roundf(data[i].y / step) + grid_size;
 
@@ -44,6 +44,34 @@ void get_local_ocupancy_grid(point_t *data, int num_data, uint8_t grid[LOCAL_GRI
 			continue;
 
 		grid[x][y] = 255; // occupied
+	}
+
+	// Filter noise
+	int k_size = 5;
+	for(int i = k_size ; i < size - k_size ; ++i )
+		for(int j = k_size; j < size - k_size; ++j )
+			if(grid[i][j] == 255)
+			{
+				// check this point for noise
+				int count = 0;
+				for(int dx = -k_size ; dx < k_size ; ++dx )
+					for(int dy = -k_size ; dy < k_size ; ++dy )
+						if(grid[i + dx][j + dy] == 255) 
+							count ++;
+
+				if(count < 3)
+					grid[i][j] = 128;
+				//printf("count: %d\n",count );
+			}
+
+	// Mark free cells
+	for (int i = 0; i < num_data; ++i)
+	{
+		int x = (int)roundf(data[i].x / step) + grid_size;
+		int y = (int)roundf(data[i].y / step) + grid_size;
+
+		if (x < 0 || y < 0 || x > size || y > size || grid[x][y] != 255)
+			continue;
 
 		// Mark all cell in between as free cells
 		// How many points on the line?
@@ -54,18 +82,18 @@ void get_local_ocupancy_grid(point_t *data, int num_data, uint8_t grid[LOCAL_GRI
 		{
 			int x = (int)roundf(k1 * data[i].x / (num_p * step)) + grid_size;
 			int y = (int)roundf(k1 * data[i].y / (num_p * step)) + grid_size;
-
-			grid[x][y] = 0; // free
+				grid[x][y] = 0; // free
 		}
 	}
 
+	// Dilate free cells
 	for(int i = 1 ; i < size - 1 ; ++i )
 		for(int j = 1; j < size - 1; ++j )
 		{
 			if(grid[i][j] != 128) continue; // only unknown cells
-			if(grid[i-1][j] == 0 && grid[i+1][j] == 0 && 
-			   grid[i-1][j] == 0 && grid[i+1][j] == 0)
-					grid[i][j] = 0; // mark as free
+				if(grid[i-1][j] == 0 && grid[i+1][j] == 0 && 
+				   grid[i-1][j] == 0 && grid[i+1][j] == 0)
+						grid[i][j] = 0; // mark as free
 		}
 }
 
@@ -235,16 +263,16 @@ void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], in
 				 point_t *scan, int num_scan,
 				 float *angle, float *rx, float *ry, float *residual)
 {
-	float best_cost = 1000000000;
+	int best_cost = 1000000000;
 	float best_dx, best_dy, best_dangle, best_matches;
 	
-	for (float dx = 0; dx <= 4 ; )
+	for (float dx = 0; dx <= 2 ; )
 	{
-		for (float dy = 0; dy <= 4; )
+		for (float dy = 0; dy <= 2; )
 		{
-			for (float dangle = 0; dangle <= 3 * 0.174532925; )
+			for (float dangle = 0; dangle <= 5 * 0.0174532925; )
 			{
-				float cost = 0;
+				int cost = 0;
 
 				for(int ind = 0; ind < num_scan ; ++ind)
 				{
@@ -263,7 +291,7 @@ void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], in
 					best_dx = dx;
 					best_dy = dy;
 					best_dangle = dangle;
-					// printf("transform: %f %f %f cost %d\n", dangle, dx, dy, cost);
+					// printf("    transform: %f %f %f cost %d\n", dangle, dx, dy, cost);
 				}
 
 				dangle = -dangle;
