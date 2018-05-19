@@ -266,11 +266,11 @@ void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], in
 	int best_cost = 1000000000;
 	float best_dx, best_dy, best_dangle, best_matches;
 	
-	for (float dx = 0; dx <= 2 ; )
+	for (float dx = 0; dx <= 8 ; )
 	{
-		for (float dy = 0; dy <= 2; )
+		for (float dy = 0; dy <= 8; )
 		{
-			for (float dangle = 0; dangle <= 5 * 0.0174532925; )
+			for (float dangle = 0; dangle <= 30 * 0.0174532925; )
 			{
 				int cost = 0;
 
@@ -295,14 +295,14 @@ void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], in
 				}
 
 				dangle = -dangle;
-				if (dangle >= 0) dangle += 0.5 * 0.0174532925;
+				if (dangle >= 0) dangle += 1 * 0.0174532925;
 			}
 
 			dy = -dy;
-			if (dy >= 0) dy += 0.5;
+			if (dy >= 0) dy += 1.0;
 		}
 		dx = -dx;
-		if (dx >= 0) dx += 0.5;
+		if (dx >= 0) dx += 1.0;
 	}
 
 

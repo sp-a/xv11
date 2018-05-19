@@ -288,7 +288,7 @@ void runOnDataset()
    		// int py = (int)(robot.pos.x / 0.05) + GLOBAL_GRID_MAX_RANGE;
    		// int px = (int)(robot.pos.y / 0.05) + GLOBAL_GRID_MAX_RANGE;
    		// circle(colorgrid, Point(px,py), 5, 0x00FFFF, -1);
-  		waitKey(0); 	
+  		waitKey(1); 	
 	}
 
 	//post_process_grid_erode(g_grid, pp_grid, GLOBAL_GRID_SIZE);
@@ -509,7 +509,8 @@ void runWithSensors()
 
 int main()
 {
-	runWithSensors();
+	// runWithSensors();
+	runOnDataset();
 
 	return 0;
 }
