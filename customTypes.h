@@ -30,8 +30,8 @@ using namespace std;
 #define ROBOT_POS_SIZE					  3
 #define MAX_STATE_SIZE	(ROBOT_POS_SIZE + 2 * MAX_FEATURES)
 
-#define MAX_ODOMETRY_SAMPLES 4096
-#define MAX_LIDAR_SAMPLES    4096
+#define MAX_ODOMETRY_SAMPLES 4*4096
+#define MAX_LIDAR_SAMPLES    4*4096
 #define MAX_DB_FEATURES  	 (8*1024)
 #define MAX_NEW_SEGMENTS     64
 
@@ -100,6 +100,7 @@ typedef struct {
 	float var;
 
 	int age;
+	int seen;
 }segment_t;
 
 typedef struct {

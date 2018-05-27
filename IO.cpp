@@ -97,7 +97,7 @@ int readOdometryFromFile(odometry_t *odometry, int max_num_readings)
 			// ODOM x y theta tv rv accel
 			sscanf(line, "ODOM %f %f %f %f %f %f %f %s %f", &odo.x, &odo.y, &odo.Q, &odo.tv, &odo.rv, &dummy, &dummy, dummyN, &odo.ts);
 			odometry[index++] = odo;
-			 // printf("ODOM:%d %f %f %f %f %f\n" ,index, odo.tv, odo.rv, odo.Q, dummy, odo.ts);
+			printf("ODOM:%d %f %f %f %f %f\n" ,index, odo.tv, odo.rv, odo.Q, dummy, odo.ts);
 		}
 		
 		if (index >= max_num_readings)
@@ -269,6 +269,42 @@ void dump_ocupancy_map(uint8_t *grid, int grid_size, const char *filename)
 	fclose(f);
 }
 
+#include <string.h>
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/highgui/highgui.hpp"
+using namespace cv;
+float dists[360];
+uint8_t smap[500][500];
+uint8_t imu[16];
+uint8_t packet[24];
+uint64_t imu_ts = 0;
+uint64_t lidar_ts = 0;
+uint64_t ts0 = 0;
+
+void dumpScanToFile(const char *filename, uint64_t ts)
+{
+	printf("dumpScanToFile %s\n", filename);
+	FILE *f = fopen(filename, "a");
+	assert(f != NULL);
+	for(int i = 0 ; i < 360; ++i )
+	{
+		fprintf(f, "%f ", dists[i]);
+	}
+	fprintf(f, "%lu\n", ts);
+	fclose(f);
+}
+
+void dumpImuToFile(const char * filename, uint64_t ts)
+{
+	printf("dumpImuToFile %s\n", filename);
+	FILE *f = fopen(filename, "a");
+	assert(f != NULL);
+	for(int i = 0; i < 12; ++i )
+		fprintf(f, "%u ", imu[i]);
+	fprintf(f, "%lu\n", imu_ts);
+	fclose(f);
+}
+
 static void readSensor(int fd, uint8_t *buf, int  size, int filter)
 {
 	int bytes = 0;
@@ -289,12 +325,7 @@ static void readSensor(int fd, uint8_t *buf, int  size, int filter)
 	}while(bytes < size);
 }
 
-#include <string.h>
-#include "opencv2/imgproc/imgproc.hpp"
-#include "opencv2/highgui/highgui.hpp"
-using namespace cv;
-float dists[360];
-uint8_t smap[500][500];
+
 void showmap()
 {
 	int count = 0;
@@ -343,6 +374,12 @@ int checksum(uint8_t *data)
     return checksum;
 }
 
+uint64_t GetTimeStamp() {
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+    return tv.tv_sec*(uint64_t)1000000+tv.tv_usec;
+}
+
 int openSerialPort(const char *devname)
 {
 	int fd = open (devname, O_RDWR | O_NOCTTY | O_SYNC);
@@ -356,19 +393,10 @@ int openSerialPort(const char *devname)
 	set_interface_attribs (fd, B115200, 0);  // set speed to 115,200 bps, 8n1 (no parity)
 	set_blocking (fd, 1);                // set no blocking
 
+	ts0 = GetTimeStamp();
+
 	return fd;
 }
-
-uint8_t imu[16];
-uint8_t packet[24];
-uint64_t imu_ts = 0;
-
-uint64_t GetTimeStamp() {
-    struct timeval tv;
-    gettimeofday(&tv,NULL);
-    return tv.tv_sec*(uint64_t)1000000+tv.tv_usec;
-}
-
 
 int readFromSerialPort(int fd)
 {	
@@ -382,7 +410,10 @@ int readFromSerialPort(int fd)
                readSensor(fd, &packet[0], 1, 1);
 
                if(packet[0] == 0xFA ) 
-                   init_level = 1;
+               {
+               		lidar_ts = GetTimeStamp();
+                    init_level = 1;
+               }
                else
                {
                	   if(packet[0] == 0xfb)
@@ -390,7 +421,7 @@ int readFromSerialPort(int fd)
                	   		uint8_t check;
                	   		readSensor(fd, &check, 1, 0);
                	   		if(check == 0xcd){
-               	   			imu_ts  =GetTimeStamp();
+               	   			imu_ts  =GetTimeStamp() - ts0;
 	               	   	    // printf("imu read!\n");
 
 	               	   	    // force split ???
@@ -400,7 +431,7 @@ int readFromSerialPort(int fd)
 	               	   		readSensor(fd, &imu[6], 2, 0);
 	               	   		readSensor(fd, &imu[8], 2, 0);
 	               	   		readSensor(fd, &imu[10], 2, 0);
-
+	               	   		dumpImuToFile("imu.txt", imu_ts - ts0);
 	               	   		 return 1;
                	   	}
                	   }
@@ -472,6 +503,7 @@ int readFromSerialPort(int fd)
                 if(index < previndex)
                 {
                 	previndex = index;
+                	dumpScanToFile("lidar.txt", lidar_ts - ts0);
                 	return 0;
                 }
                 previndex = index;

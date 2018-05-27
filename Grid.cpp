@@ -183,7 +183,7 @@ void update_map(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int g_range,
 
 			int val = l_grid[x + l_range][y + l_range];
 			if(val == 128) continue;
-
+			// freq[rx + tx][ry + ty] ++;
 					
 			if(val == 255)
 			{
@@ -191,6 +191,10 @@ void update_map(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int g_range,
 				freq[rx + tx][ry + ty] ++;
 				last_seen[rx + tx][ry + ty] = iter;
 			}
+
+			if(val == 0 && g_grid[rx + tx][ry + ty] == 255 && 
+				last_seen[rx + tx][ry + ty] - iter > 100)
+					freq[rx + tx][ry + ty] ++;
 			
 			float prob = (float) occ[rx + tx][ry + ty] / freq[rx + tx][ry + ty];
 			g_grid[rx + tx][ry + ty] = (int)roundf(prob * 255);		
@@ -266,11 +270,11 @@ void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], in
 	int best_cost = 1000000000;
 	float best_dx, best_dy, best_dangle, best_matches;
 	
-	for (float dx = 0; dx <= 8 ; )
+	for (float dx = 0; dx <= 2 ; )
 	{
-		for (float dy = 0; dy <= 8; )
+		for (float dy = 0; dy <= 2; )
 		{
-			for (float dangle = 0; dangle <= 30 * 0.0174532925; )
+			for (float dangle = 0; dangle <= 5 * 0.0174532925; )
 			{
 				int cost = 0;
 
@@ -295,15 +299,54 @@ void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], in
 				}
 
 				dangle = -dangle;
-				if (dangle >= 0) dangle += 1 * 0.0174532925;
+				if (dangle >= 0) dangle += 0.25 * 0.0174532925;
 			}
 
 			dy = -dy;
-			if (dy >= 0) dy += 1.0;
+			if (dy >= 0) dy += 0.25;
 		}
 		dx = -dx;
-		if (dx >= 0) dx += 1.0;
+		if (dx >= 0) dx += 0.25;
 	}
+
+	// for (float dx = best_dx; dx <= best_dx + 2; )
+	// {
+	// 	for (float dy = best_dy; dy <= best_dy + 2; )
+	// 	{
+	// 		for (float dangle = best_dangle; dangle <= best_dangle + 3 * 0.0174532925; )
+	// 		{
+	// 			int cost = 0;
+
+	// 			for(int ind = 0; ind < num_scan ; ++ind)
+	// 			{
+	// 				float nx = cos(dangle) * scan[ind].x - sin(dangle) * scan[ind].y + dx;
+	// 				float ny = sin(dangle) * scan[ind].x + cos(dangle) * scan[ind].y + dy;
+
+	// 				int dnx = (int)roundf(nx) + g_range;
+	// 				int dny = (int)roundf(ny) + g_range;
+
+	// 				cost += 255 - map[dnx][dny];
+	// 			}
+
+	// 			if (cost < best_cost)
+	// 			{
+	// 				best_cost = cost;
+	// 				best_dx = dx;
+	// 				best_dy = dy;
+	// 				best_dangle = dangle;
+	// 				// printf("    transform: %f %f %f cost %d\n", dangle, dx, dy, cost);
+	// 			}
+
+	// 			dangle = -dangle;
+	// 			if (dangle >= 0) dangle += 0.25 * 0.0174532925;
+	// 		}
+
+	// 		dy = -dy;
+	// 		if (dy >= 0) dy += 0.25;
+	// 	}
+	// 	dx = -dx;
+	// 	if (dx >= 0) dx += 0.25;
+	// }
 
 
 	*angle = best_dangle;
