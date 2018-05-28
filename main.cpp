@@ -98,18 +98,18 @@ void runOnDataset()
 		float time = lidar[iter].ts; // current time
 		int dangle, dx, dy;
 
-		//evolve(&robot, time);
+		evolve(&robot, time);
 		// while(robot.Q > 2* PI)
 		//  	robot.Q -= 2 * PI;
 		// while(robot.Q <  0)
 		//  	robot.Q += 2 * PI;
 
 		float odom[3];
-		getCurrentOdometry(&robot, time, odom);
+		//getCurrentOdometry(&robot, time, odom);
 
 		int num_points = convertLidarToSamplePoint(lidar[iter], data_points, num_lidar_samples);
 		int num_segments = 0;
-		if (1)
+		if (0)
 		{
 			int index = iter % 2;
 			get_local_ocupancy_grid(data_points, num_points, grid, 0.05, LOCAL_GRID_MAX_RANGE);
@@ -142,8 +142,8 @@ void runOnDataset()
 			{
 				
 			  	robot.Q += dangle;
-				robot.pos.x += odom[0] ;
-				robot.pos.y += odom[1] ;
+				// robot.pos.x += odom[0] ;
+				// robot.pos.y += odom[1] ;
 			}
 			else
 			{
@@ -190,7 +190,7 @@ void runOnDataset()
 				{
 					float mdist = distance(temp_sg.middle, sg_db[j].middle);
 					float ldif = abs(sg_length(temp_sg) - sg_length(sg_db[j]));
-					if(slope_dif(temp_sg.slope, sg_db[j].slope) < PI / 4 && mdist < 0.5 && ldif < 0.2)
+					if(slope_dif(temp_sg.slope, sg_db[j].slope) < PI / 6 && mdist < 0.2 && ldif < 0.2)
 					{
 						if(best_cost > mdist * 10 + ldif)
 						{
@@ -242,8 +242,8 @@ void runOnDataset()
 					float dx = x2 - sg0.middle.x;
 					float dy = y2 - sg0.middle.y;
 
-					// robot.pos.x += dx;
-					// robot.pos.y += dy;
+					robot.pos.x += dx;
+					robot.pos.y += dy;
 
 					}
 				}
@@ -384,6 +384,7 @@ Kalman klmz(0.1,0.001,0.001,0.0000001);
 
 void runWithSensors()
 {
+	// sleep(20);
 	int fd = openSerialPort("/dev/ttyACM0");
 	int num_segments = 0;
 	assert(fd >= 0);
@@ -398,14 +399,14 @@ void runWithSensors()
 	
 	while(1)
 	{
-		int type = readFromSerialPort(fd); 
+		int type = readFromSerialPort(fd);
 		if(type == 0)
 		{
 			// printf("lidar data available!\n");
 			int num_points = 0;
 			for(int i = 0; i < 360; ++i )
 			{
-				if(dists[i] == 0 || dists[i] > 6) continue;
+				// if(dists[i] == 0 || dists[i] > 6) continue;
 
 				float angle  = (float)i * DEGREES_TO_RADIAN;
 				float x = cos(angle) * dists[i];
@@ -566,31 +567,31 @@ void runWithSensors()
 	        int16_t az = ((int16_t)imu[5] << 8) | imu[4];
 	        float accz = (float) az / 8192;
 	        
-	        float ac[3];
-  			ac[0] = klmx.update(accx) * 9.80665;
-  			ac[1] = klmy.update(accy) * 9.80665;
-  			ac[2] = klmz.update(accz) * 9.80665;
+	    //     float ac[3];
+  			// ac[0] = klmx.update(accx) * 9.80665;
+  			// ac[1] = klmy.update(accy) * 9.80665;
+  			// ac[2] = klmz.update(accz) * 9.80665;
 
-	        int16_t iy = ((int16_t)imu[7] << 8) | imu[6];
-	        int16_t ip = ((int16_t)imu[9] << 8) | imu[8];
-	        int16_t ir = ((int16_t)imu[11] << 8) | imu[10];
+	    //     int16_t iy = ((int16_t)imu[7] << 8) | imu[6];
+	    //     int16_t ip = ((int16_t)imu[9] << 8) | imu[8];
+	    //     int16_t ir = ((int16_t)imu[11] << 8) | imu[10];
 
-	        float fy = (float)iy / 100;
-	        float fp = (float)ip / 100;
-	        float fr = (float)ir / 100;
+	    //     float fy = (float)iy / 100;
+	    //     float fp = (float)ip / 100;
+	    //     float fr = (float)ir / 100;
 
-	        float  dt = (float)(imu_ts - imu_prev_ts) / 1000000; // sec
+	    //     float  dt = (float)(imu_ts - imu_prev_ts) / 1000000; // sec
 
-	        robot.Q += fy - prev_fy;
-	        prev_fy = fy;
+	    //     robot.Q += fy - prev_fy;
+	    //     prev_fy = fy;
 	        
-	        float dx =  0.5 * ac[0] * dt * dt * 18;
-	        float dy =  0.5 * ac[1] * dt * dt * 18;
+	    //     float dx =  0.5 * ac[0] * dt * dt * 18;
+	    //     float dy =  0.5 * ac[1] * dt * dt * 18;
 	        
-	        // robot.pos.x += cos(robot.Q) * dx - sin(robot.Q) * dy;
-	        // robot.pos.y += sin(robot.Q) * dx + cos(robot.Q) * dy;
+	    //     robot.pos.x += cos(robot.Q) * dx - sin(robot.Q) * dy;
+	    //     robot.pos.y += sin(robot.Q) * dx + cos(robot.Q) * dy;
 
-	        // printf("%f %f %.2f dt %.2f\n", pvx, pvy, robot.Q, dt);
+	    //     printf("%f %f %.2f dt %.2f\n", pvx, pvy, robot.Q, dt);
 
 	        imu_prev_ts = imu_ts;
 		}
@@ -613,7 +614,7 @@ void runwithSavedData()
 	robot.pos.x = 0;
 	robot.pos.y = 0;
 	robot.Q = 0;
-	FeatureDetector detect(10, 15, (float)0.02, 50);
+	FeatureDetector detect(50, 20, (float)0.02, 200);
 
 	FILE *fl = fopen("lidar_dataset.txt", "r");
 	while(!feof(fl))
@@ -637,6 +638,8 @@ void runwithSavedData()
 	}
 	fclose(fi);
 	printf("imu samples: %d\n", imu_num);
+	float fdx= 0, fdy = 0, fdq = 0;
+	memset(g_grid, 128, sizeof(g_grid));
 
 	while(curr_imu < imu_num && curr_lidar < lidar_num)
 	{
@@ -672,7 +675,7 @@ void runwithSavedData()
 	        float fp = (float)ip / 100;
 	        float fr = (float)ir / 100;
 
-	        robot.Q -= fy - prev_fy;
+	       robot.Q -= fy - prev_fy;
 
 	        printf("imu dq: %.2f " , fy - prev_fy);
 	        prev_fy = fy;
@@ -683,14 +686,12 @@ void runwithSavedData()
 	        float rdx = cos(robot.Q) * dx - sin(robot.Q) * dy;
 	        float rdy = sin(robot.Q) * dx + cos(robot.Q) * dy;
 
-	        robot.pos.x -= rdx;
-	        robot.pos.y -= rdy;
+	        //robot.pos.x -= rdx;
+	        //robot.pos.y -= rdy;
 
 	        printf("dx %.2f  dy  %.2f\n", rdx, rdy);
 
 	        imu_prev_ts = imu_ts;
-
-
 
 			curr_imu ++;
 		}
@@ -700,11 +701,14 @@ void runwithSavedData()
 			int num_points = 0;
 			for(int i = 0; i < 360; ++i )
 			{
-				if(lidar_data[curr_lidar][i] == 0 || lidar_data[curr_lidar][i] > 6) continue;
+				if((int)(lidar_data[curr_lidar][i] * 1000) & 0xC000) continue;
+				if(lidar_data[curr_lidar][i] > 6.0) continue;
 
 				float angle  = (float)i * DEGREES_TO_RADIAN;
 				float x = cos(angle) * lidar_data[curr_lidar][i];
 				float y = sin(angle) * lidar_data[curr_lidar][i];
+
+				if(sqrt(x*x + y*y) < 1.0) continue;
 
 				data_points[num_points].x = x;
 				data_points[num_points].y = y;
@@ -730,7 +734,7 @@ void runwithSavedData()
 				{
 					float mdist = distance(temp_sg.middle, sg_db[j].middle);
 					float ldif = abs(sg_length(temp_sg) - sg_length(sg_db[j]));
-					if(slope_dif(temp_sg.slope, sg_db[j].slope) < PI / 6 && mdist < 0.5 && ldif < 0.2)
+					if(slope_dif(temp_sg.slope, sg_db[j].slope) < PI / 10  && mdist < 1 )
 					{
 						if(best_cost > mdist * 10 + ldif)
 						{
@@ -740,13 +744,13 @@ void runwithSavedData()
 					}
 				}
 
-				if(match_sg[i] != -1  && sg_length(temp_sg) > 1.5)
+				if(match_sg[i] != -1 && sg_length(temp_sg) > 1.5)
 				{
 					float slope0 = temp_sg.slope;
 					float slope1 = sg_db[match_sg[i]].slope;
 					float dq;
 
-					{
+					sg_db[match_sg[i]].seen ++;
 
 					if(slope1 > slope0)
 					{
@@ -764,10 +768,10 @@ void runwithSavedData()
 					}
 
 					
-					robot.Q += dq;
+					
 
 					segment_t sg0 = segments[i];
-					transform_segment(&sg0, robot.pos.x, robot.pos.y, robot.Q);
+					transform_segment(&sg0, robot.pos.x, robot.pos.y, robot.Q + dq);
 					segment_t sg1 = sg_db[match_sg[i]];
 					
 					float m = -1 / sg1.m;
@@ -782,12 +786,18 @@ void runwithSavedData()
 					float dx = x2 - sg0.middle.x;
 					float dy = y2 - sg0.middle.y;
 
-					robot.pos.x += dx;
-					robot.pos.y += dy;
-
-					printf("update dx: %f dy: %f dq: %f\n",dx, dy, dq);
-
+					if(sqrt(dx * dx + dy * dy) < 0.5)
+					{
+						robot.Q +=  dq;
+						robot.pos.x += dx;
+						robot.pos.y += dy;
+						printf("update dx: %f dy: %f dq: %f\n",dx, dy, dq);
 					}
+					else
+					{
+						printf("diff too  large: %f\n", sqrt(dx * dx + dy * dy));
+					}
+
 				}
 			}
 
@@ -795,7 +805,7 @@ void runwithSavedData()
 			int count = 0;
 			for(int i = 0 ; i < num_sg_db; ++i  )
 			{
-				if(++sg_db[i].age < 40)
+				if(++sg_db[i].age  < 5 ||  sg_db[i].seen >= 2)
 					sg_db[count++] = sg_db[i];
 			}
 			num_sg_db = count;
@@ -811,8 +821,35 @@ void runwithSavedData()
 					temp_sg.seen = 1;
 					if(temp_sg.slope < 0)
 						temp_sg.slope += PI;
-					sg_db[num_sg_db++] = temp_sg;
+
+    				sg_db[num_sg_db++] = temp_sg;
 				}
+
+			float angle = robot.Q;
+			int rx = (int)roundf(robot.pos.x / 0.05);
+			int ry = (int)roundf(robot.pos.y / 0.05);
+			extract_local_grid(g_grid, GLOBAL_GRID_MAX_RANGE, l_grid, LOCAL_GRID_MAX_RANGE + PADDING_SIZE,
+			 				   angle, rx, ry);
+			// int temp_points = extract_local_points(g_grid, GLOBAL_GRID_MAX_RANGE, l_points,
+			// 						 LOCAL_GRID_MAX_RANGE + PADDING_SIZE, angle, rx, ry);
+
+			float dangle, dx, dy, residual;
+			// scan_to_map(l_points, temp_points, data_points, num_points, &dangle, &dx, &dy, &cost, &matches);
+			scan_to_map(l_grid, LOCAL_GRID_MAX_RANGE + PADDING_SIZE, data_points, num_points,
+			 	 		&dangle, &dx, &dy, &residual);
+			// // dangle *= 0.05;
+			dx *= 0.05;
+			dy *= 0.05;
+
+			printf("update: %f %f %f %f \n", dx, dy,dangle, residual);
+
+			if (0)
+			{
+				
+			  	robot.Q += dangle;
+				robot.pos.x -= dx ;
+				robot.pos.y -= dy ;
+			}
 
 			// memset(g_grid, 128, sizeof(g_grid));
 			update_map(g_grid, GLOBAL_GRID_MAX_RANGE, grid, LOCAL_GRID_MAX_RANGE,
@@ -832,9 +869,9 @@ void runwithSavedData()
 	   			int py1 = (int)(segments[i].edges[1].x / 0.05) + LOCAL_GRID_MAX_RANGE;
 	   			int px1 = (int)(segments[i].edges[1].y / 0.05) + LOCAL_GRID_MAX_RANGE;
 	   			if(match_sg[i] == -1)
-	   				line(colorgrid, Point(px0,py0), Point(px1,py1), 0x88, 2);
+	   				line(colorgrid, Point(px0,py0), Point(px1,py1), CV_RGB(0, 0, 128), 2);
 	   			else
-	   				line(colorgrid, Point(px0,py0), Point(px1,py1), 0x2222, 2);
+	   				line(colorgrid, Point(px0,py0), Point(px1,py1),  CV_RGB(0, 0, 255), 2);
 	   		}
 	   		resize(colorgrid, szscan, cvSize(1280, 720));
 	   		imshow( "Scan" , szscan );                   // Show our image inside it.
@@ -849,15 +886,21 @@ void runwithSavedData()
 		   		int py = (int)(robot.pos.x / 0.05) + GLOBAL_GRID_MAX_RANGE;
 		   		int px = (int)(robot.pos.y / 0.05) + GLOBAL_GRID_MAX_RANGE;
 		   		circle(colorgrid, Point(px,py), 5, 0x00FFFF, -1);
+
+	   			int dx = sin(robot.Q) * 15;
+	   			int dy = cos(robot.Q) * 15;
+
+	   			line(colorgrid, Point(px, py), Point(px-dx, py - dy),  CV_RGB(0, 255, 0), 2);
 	   		}
-	   		// for(int i = 0 ; i < num_sg_db ; ++i )
-	   		// {
-	   		// 	int py0 = (int)(sg_db[i].edges[0].x / 0.05) + GLOBAL_GRID_MAX_RANGE;
-	   		// 	int px0 = (int)(sg_db[i].edges[0].y / 0.05) + GLOBAL_GRID_MAX_RANGE;
-	   		// 	int py1 = (int)(sg_db[i].edges[1].x / 0.05) + GLOBAL_GRID_MAX_RANGE;
-	   		// 	int px1 = (int)(sg_db[i].edges[1].y / 0.05) + GLOBAL_GRID_MAX_RANGE;
-	   		// 	line(colorgrid, Point(px0,py0), Point(px1,py1), 0x88, 2);
-	   		// }
+
+	   		for(int i = 0 ; i < num_sg_db ; ++i )
+	   		{
+	   			int py0 = (int)(sg_db[i].edges[0].x / 0.05) + GLOBAL_GRID_MAX_RANGE;
+	   			int px0 = (int)(sg_db[i].edges[0].y / 0.05) + GLOBAL_GRID_MAX_RANGE;
+	   			int py1 = (int)(sg_db[i].edges[1].x / 0.05) + GLOBAL_GRID_MAX_RANGE;
+	   			int px1 = (int)(sg_db[i].edges[1].y / 0.05) + GLOBAL_GRID_MAX_RANGE;
+	   			line(colorgrid, Point(px0,py0), Point(px1,py1),  CV_RGB(128, 0, 0), 2);
+	   		}
 	   		resize(colorgrid, szgmap, cvSize(1280, 720));
 	   		imshow( "Global map" , szgmap );                   // Show our image inside it.
 	   		waitKey(0); 
@@ -872,9 +915,9 @@ int main()
 	clearFile("lidar.txt");
 	clearFile("imu.txt");
 	//runWithSensors();
-	runOnDataset();
+	// runOnDataset();
 
-	//runwithSavedData();
+	runwithSavedData();
 
 	return 0;
 }

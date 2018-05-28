@@ -183,12 +183,12 @@ void update_map(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int g_range,
 
 			int val = l_grid[x + l_range][y + l_range];
 			if(val == 128) continue;
-			// freq[rx + tx][ry + ty] ++;
+			freq[rx + tx][ry + ty] ++;
 					
 			if(val == 255)
 			{
 				occ[rx + tx][ry + ty] ++;	
-				freq[rx + tx][ry + ty] ++;
+				// freq[rx + tx][ry + ty] ++;
 				last_seen[rx + tx][ry + ty] = iter;
 			}
 
@@ -274,7 +274,7 @@ void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], in
 	{
 		for (float dy = 0; dy <= 2; )
 		{
-			for (float dangle = 0; dangle <= 5 * 0.0174532925; )
+			for (float dangle = 0; dangle <= 1 * 0.0174532925; )
 			{
 				int cost = 0;
 
@@ -299,14 +299,14 @@ void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], in
 				}
 
 				dangle = -dangle;
-				if (dangle >= 0) dangle += 0.25 * 0.0174532925;
+				if (dangle >= 0) dangle += 1 * 0.0174532925;
 			}
 
 			dy = -dy;
-			if (dy >= 0) dy += 0.25;
+			if (dy >= 0) dy += 0.5;
 		}
 		dx = -dx;
-		if (dx >= 0) dx += 0.25;
+		if (dx >= 0) dx += 0.5;
 	}
 
 	// for (float dx = best_dx; dx <= best_dx + 2; )

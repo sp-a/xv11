@@ -468,11 +468,11 @@ int readFromSerialPort(int fd)
                 	for(int i = 0; i < 4 ; ++i )
                 	{
                 		readSensor(fd, &packet[4 + 4 * i], 2, 1);
-                		int data = (packet[4 + 4 * i] | ((int)(packet[4 + 4*i + 1] & 0x3f )<< 8));
+                		int data = (packet[4 + 4 * i] | ((int)(packet[4 + 4*i + 1] & 0xff )<< 8));
 
                 		if(data & 0x4000)
                 		{
-                			printf("warning! ");
+                			printf("warning! \n");
                 			continue;
                 		}
                 		if(data & 0x8000)
