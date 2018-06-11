@@ -140,21 +140,21 @@ int readLidarFromFile(lidar_t* lidar, int max_num_readings)
 	{
 		int bytes, offset = 0;
 		fgets(line, 64 * 1024, f);
-		// if (strstr(line, "RAWLASER1") == line) // Find 'RAWLASER1' at begining
-		// {
-		// 	sscanf(line, "RAWLASER1 %d %f %f %f %f %f %d %d %n",
-		// 		&raw.laser_type, &raw.start_angle, &raw.field_of_view, &raw.angular_resolution,
-		// 		&raw.maximum_range, &raw.accuracy, &raw.remission_mode, &raw.num_readings, &bytes);
-		// 	offset = bytes;
-		// 	for (int i = 0; i < raw.num_readings; ++i)
-		// 	{
-		// 		sscanf(line + offset, "%f %n", &raw.data[i], &bytes);
-		// 		offset += bytes;
-		// 	}
-		// 	sscanf(line + offset, "%d %f %s %f", &dummyI, &dummy, dummyN, &raw.ts);
-		// 	raw.has_odometry = false;
-		// 	lidar[index ++] = raw;
-		// }
+		if (strstr(line, "RAWLASER1") == line) // Find 'RAWLASER1' at begining
+		{
+			sscanf(line, "RAWLASER1 %d %f %f %f %f %f %d %d %n",
+				&raw.laser_type, &raw.start_angle, &raw.field_of_view, &raw.angular_resolution,
+				&raw.maximum_range, &raw.accuracy, &raw.remission_mode, &raw.num_readings, &bytes);
+			offset = bytes;
+			for (int i = 0; i < raw.num_readings; ++i)
+			{
+				sscanf(line + offset, "%f %n", &raw.data[i], &bytes);
+				offset += bytes;
+			}
+			sscanf(line + offset, "%d %f %s %f", &dummyI, &dummy, dummyN, &raw.ts);
+			raw.has_odometry = false;
+			lidar[index ++] = raw;
+		}
 
 		// if (strstr(line, "ROBOTLASER1") == line) // Find 'RAWLASER1' at begining
 		// {
@@ -175,20 +175,20 @@ int readLidarFromFile(lidar_t* lidar, int max_num_readings)
 		// 	lidar[index++] = raw;
 		// }
 
-		if (strstr(line, "FLASER") == line) // Find 'RAWLASER1' at begining
-		{
-			sscanf(line, "FLASER %d %n",
-				 &raw.num_readings, &bytes);
-			offset = bytes;
-			for (int i = 0; i < raw.num_readings; ++i)
-			{
-				sscanf(line + offset, "%f %n", &raw.data[i], &bytes);
-				offset += bytes;
-			}
-			sscanf(line + offset, "%f %f %f %f %f %f %f %s %f", &dummy, &dummy,
-				&dummy, &dummy, &dummy, &dummy, &dummy, dummyN, &raw.ts);
-			lidar[index++] = raw;
-		}
+		// if (strstr(line, "FLASER") == line) // Find 'RAWLASER1' at begining
+		// {
+		// 	sscanf(line, "FLASER %d %n",
+		// 		 &raw.num_readings, &bytes);
+		// 	offset = bytes;
+		// 	for (int i = 0; i < raw.num_readings; ++i)
+		// 	{
+		// 		sscanf(line + offset, "%f %n", &raw.data[i], &bytes);
+		// 		offset += bytes;
+		// 	}
+		// 	sscanf(line + offset, "%f %f %f %f %f %f %f %s %f", &dummy, &dummy,
+		// 		&dummy, &dummy, &dummy, &dummy, &dummy, dummyN, &raw.ts);
+		// 	lidar[index++] = raw;
+		// }
 		raw.start_angle = -1.570796;
 		raw.angular_resolution = 0.008727;
 

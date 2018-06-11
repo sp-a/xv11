@@ -92,27 +92,15 @@ void evolve(robot_state_t *robot, float time)
 			float dx = odometry_data[o_index].x - odometry_data[o_index - 1].x;
 			float dy = odometry_data[o_index].y - odometry_data[o_index - 1].y;
 			float dQ = odometry_data[o_index].Q - odometry_data[o_index - 1].Q;
+			float Q = odometry_data[o_index - 1].Q;
 
-			float dt = odometry_data[o_index].ts - odometry_data[o_index - 1].ts;
-			float v = sqrt(dx*dx + dy * dy);
-			float w = dQ;
-			if (w)
-			{
-				robot->pos.x += -v / w*sin(robot->Q) + v / w*sin(robot->Q +dQ);
-				robot->pos.y += v / w*cos(robot->Q) - v / w*cos(robot->Q + dQ);
-				robot->Q += dQ;
-			}
-			else
-			{
-				robot->pos.x += v * cos(robot->Q);
-				robot->pos.y += v * sin(robot->Q);
-			}
+			float drot1 = atan2(dy, dx) - Q;
+			float dtrans = sqrt(dx*dx + dy*dy);
+			float drot2 = dQ - drot1;
 
-			/*while (robot->Q - 2 * PI > 0) robot->Q -= 2 * PI;
-			while (robot->Q < 0) robot->Q += 2 * PI;
-
-			robot->pos.x += dx * cos(robot->Q) - dy * sin(robot->Q);
-			robot->pos.y += dy * sin(robot->Q) + dy * cos(robot->Q);*/
+			robot->pos.x += dtrans * cos(robot->Q + drot1);
+			robot->pos.y += dtrans * sin(robot->Q + drot1);
+			robot->Q += dQ;
 
 			robot->ts = odometry_data[o_index].ts;
 		}

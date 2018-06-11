@@ -61,6 +61,8 @@ int rstatex[1024*8];
 int rstatey[1024*8];
 int num_states = 0;
 
+float map_resolution = 0.05;
+
 
 double angle_diff(double a, double b)
 {
@@ -99,83 +101,53 @@ void runOnDataset()
 		int dangle, dx, dy;
 
 		evolve(&robot, time);
-		// while(robot.Q > 2* PI)
-		//  	robot.Q -= 2 * PI;
-		// while(robot.Q <  0)
-		//  	robot.Q += 2 * PI;
+		while(robot.Q > 2* PI)
+		  	robot.Q -= 2 * PI;
+		while(robot.Q <  0)
+		  	robot.Q += 2 * PI;
 
 		float odom[3];
 		//getCurrentOdometry(&robot, time, odom);
-
+		if(iter < 500) continue;
 		int num_points = convertLidarToSamplePoint(lidar[iter], data_points, num_lidar_samples);
 		int num_segments = 0;
-		if (0)
+		//if (1)
 		{
 			int index = iter % 2;
-			get_local_ocupancy_grid(data_points, num_points, grid, 0.05, LOCAL_GRID_MAX_RANGE);
+			get_local_ocupancy_grid(data_points, num_points, grid, map_resolution, LOCAL_GRID_MAX_RANGE);
+
+			num_segments = detect.extractSegmentsRansac(segments, data_points, num_points);
+			// printf("num segments: %d\n", num_segments);
 
 			for(int i = 0 ; i < num_points ; ++i )
 			{
-				data_points[i].x = roundf(data_points[i].x / 0.05);
-				data_points[i].y = roundf(data_points[i].y / 0.05);
+				data_points[i].x = roundf(data_points[i].x / map_resolution);
+				data_points[i].y = roundf(data_points[i].y /map_resolution);
 			}
 
 			float angle = robot.Q;
-			int rx = (int)roundf(robot.pos.x / 0.05);
-			int ry = (int)roundf(robot.pos.y / 0.05);
+			int rx = (int)roundf(robot.pos.x / map_resolution);
+			int ry = (int)roundf(robot.pos.y / map_resolution);
 			extract_local_grid(g_grid, GLOBAL_GRID_MAX_RANGE, l_grid, LOCAL_GRID_MAX_RANGE + PADDING_SIZE,
 			 				   angle, rx, ry);
-			// int temp_points = extract_local_points(g_grid, GLOBAL_GRID_MAX_RANGE, l_points,
-			// 						 LOCAL_GRID_MAX_RANGE + PADDING_SIZE, angle, rx, ry);
 
 			float dangle, dx, dy, residual;
-			// scan_to_map(l_points, temp_points, data_points, num_points, &dangle, &dx, &dy, &cost, &matches);
 			scan_to_map(l_grid, LOCAL_GRID_MAX_RANGE + PADDING_SIZE, data_points, num_points,
-			 	 		&dangle, &dx, &dy, &residual);
-			// // dangle *= 0.05;
-			dx *= 0.05;
-			dy *= 0.05;
+			  	 		&dangle, &dx, &dy, &residual);
 
+			dx *= map_resolution;
+			dy *= map_resolution;
 			printf("update: %f %f %f %f \n", dx, dy,dangle, residual);
 
-			if (1)
-			{
-				
-			  	robot.Q += dangle;
-				// robot.pos.x += odom[0] ;
-				// robot.pos.y += odom[1] ;
-			}
-			else
-			{
-				robot.Q += odom[2];
-				robot.pos.x += odom[0] ;
-				robot.pos.y += odom[1] ;
-			}
-			
-			// printf("residual: %f\n", residual);
-
-			printf("odom: %f %f %f\n", odom[0], odom[1], odom[2]);
+			robot.Q += dangle;
+			// robot.pos.x += odom[0] ;
+			// robot.pos.y += odom[1] ;
 
 			while(robot.Q > 2* PI)
 		 		robot.Q -= 2 * PI;
 			while(robot.Q <  0)
 		 		robot.Q += 2 * PI;
 
-			update_map(g_grid, GLOBAL_GRID_MAX_RANGE, grid, LOCAL_GRID_MAX_RANGE,
-					   robot.Q, roundf(robot.pos.x / 0.05), roundf(robot.pos.y / 0.05));
-
-			rstatex[num_states] = (int)roundf(robot.pos.x / 0.05) + GLOBAL_GRID_MAX_RANGE;
-			rstatey[num_states] = (int)roundf(robot.pos.y / 0.05) + GLOBAL_GRID_MAX_RANGE;
-			num_states ++;
-		}
-		else
-		{
-
-			get_local_ocupancy_grid(data_points, num_points, grid, 0.05, LOCAL_GRID_MAX_RANGE);
-
-			num_segments = detect.extractSegmentsRansac(segments, data_points, num_points);
-
-			printf("match segments:\n");
 			for(int i = 0 ; i < num_segments; ++i  )
 			{
 				match_sg[i] = -1;
@@ -190,7 +162,7 @@ void runOnDataset()
 				{
 					float mdist = distance(temp_sg.middle, sg_db[j].middle);
 					float ldif = abs(sg_length(temp_sg) - sg_length(sg_db[j]));
-					if(slope_dif(temp_sg.slope, sg_db[j].slope) < PI / 6 && mdist < 0.2 && ldif < 0.2)
+					if(slope_dif(temp_sg.slope, sg_db[j].slope) < PI / 12 && mdist < 0.5 && ldif < 0.2)
 					{
 						if(best_cost > mdist * 10 + ldif)
 						{
@@ -224,7 +196,7 @@ void runOnDataset()
 					}
 
 					printf("update db: %f sg: %f dq: %f\n",sg_db[match_sg[i]].slope, temp_sg.slope, dq);
-					robot.Q += dq;
+					//robot.Q += dq;
 
 					segment_t sg0 = segments[i];
 					transform_segment(&sg0, robot.pos.x, robot.pos.y, robot.Q);
@@ -242,21 +214,25 @@ void runOnDataset()
 					float dx = x2 - sg0.middle.x;
 					float dy = y2 - sg0.middle.y;
 
-					robot.pos.x += dx;
-					robot.pos.y += dy;
+					// robot.pos.x += dx;
+					// robot.pos.y += dy;
 
 					}
 				}
 			}
 
+			rstatex[num_states] = (int)roundf(robot.pos.x / map_resolution) + GLOBAL_GRID_MAX_RANGE;
+			rstatey[num_states] = (int)roundf(robot.pos.y / map_resolution) + GLOBAL_GRID_MAX_RANGE;
+			num_states ++;
+
 			// remove old segments
-			// int count = 0;
-			// for(int i = 0 ; i < num_sg_db; ++i  )
-			// {
-			// 	if(++sg_db[i].age < 40)
-			// 		sg_db[count++] = sg_db[i];
-			// }
-			// num_sg_db = count;
+			int count = 0;
+			for(int i = 0 ; i < num_sg_db; ++i  )
+			{
+				if(++sg_db[i].age < 40)
+					sg_db[count++] = sg_db[i];
+			}
+			num_sg_db = count;
 
 			printf("update segment database:\n");
 			// Add new features
@@ -274,7 +250,7 @@ void runOnDataset()
 
 			// memset(g_grid, 128, sizeof(g_grid));
 			update_map(g_grid, GLOBAL_GRID_MAX_RANGE, grid, LOCAL_GRID_MAX_RANGE,
-					   robot.Q, roundf(robot.pos.x / 0.05), roundf(robot.pos.y / 0.05));
+			 		   robot.Q, roundf(robot.pos.x / map_resolution), roundf(robot.pos.y / map_resolution));
 
 		}
 
@@ -283,7 +259,9 @@ void runOnDataset()
    		Mat invlmap, szlmap;
    		bitwise_not ( lmap, invlmap ); //(, invgrid, 0, 255, CV_THRESH_BINARY_INV);
    		resize(invlmap, szlmap, cvSize(640, 480));
-   		imshow( "Local map" , szlmap );                   // Show our image inside it.
+   		Mat fliplocal;
+   		flip(szlmap, fliplocal, 0);
+   		imshow( "Local map" , fliplocal );                   // Show our image inside it.
 
   //  		Mat scan(LOCAL_GRID_SIZE, LOCAL_GRID_SIZE, CV_8UC1, grid);
 		// namedWindow( "Scan", WINDOW_AUTOSIZE );// Create a window for display.
@@ -301,17 +279,21 @@ void runOnDataset()
 
 	   	for(int i = 0 ; i < num_segments ; ++i )
 	   	{
-	   		int py0 = (int)(segments[i].edges[0].x / 0.05) + LOCAL_GRID_MAX_RANGE;
-	   		int px0 = (int)(segments[i].edges[0].y / 0.05) + LOCAL_GRID_MAX_RANGE;
-	   		int py1 = (int)(segments[i].edges[1].x / 0.05) + LOCAL_GRID_MAX_RANGE;
-	   		int px1 = (int)(segments[i].edges[1].y / 0.05) + LOCAL_GRID_MAX_RANGE;
+	   		int py0 = (int)(segments[i].edges[0].x / map_resolution) + LOCAL_GRID_MAX_RANGE;
+	   		int px0 = (int)(segments[i].edges[0].y / map_resolution) + LOCAL_GRID_MAX_RANGE;
+	   		int py1 = (int)(segments[i].edges[1].x / map_resolution) + LOCAL_GRID_MAX_RANGE;
+	   		int px1 = (int)(segments[i].edges[1].y / map_resolution) + LOCAL_GRID_MAX_RANGE;
 	   		if(match_sg[i] == -1)
 	   			line(colorgrid, Point(px0,py0), Point(px1,py1), 0x88, 2);
 	   		else
 	   			line(colorgrid, Point(px0,py0), Point(px1,py1), 0x2222, 2);
 	   	}
+	   	circle(colorgrid, Point(LOCAL_GRID_MAX_RANGE, LOCAL_GRID_MAX_RANGE), 8, CV_RGB(50, 50, 50), -1);
+		line(colorgrid, Point(LOCAL_GRID_MAX_RANGE, LOCAL_GRID_MAX_RANGE), Point(LOCAL_GRID_MAX_RANGE, LOCAL_GRID_MAX_RANGE+8),  CV_RGB(0, 0, 0), 2);
 	   	resize(colorgrid, szscan, cvSize(1280, 720));
-	   	imshow( "Scan" , szscan );                   // Show our image inside it.
+	   	Mat flipscan;
+	   	flip(szscan, flipscan,0);
+	   	imshow( "Scan" , flipscan );                   // Show our image inside it.
 
    		Mat gmap(GLOBAL_GRID_SIZE, GLOBAL_GRID_SIZE, CV_8UC1, g_grid);
 		namedWindow( "Local map", WINDOW_AUTOSIZE );// Create a window for display.
@@ -324,8 +306,8 @@ void runOnDataset()
    		}
    		// inverted axes for robot position
    		{
-	   		int py = (int)(robot.pos.x / 0.05) + GLOBAL_GRID_MAX_RANGE;
-	   		int px = (int)(robot.pos.y / 0.05) + GLOBAL_GRID_MAX_RANGE;
+	   		int py = (int)(robot.pos.x / map_resolution) + GLOBAL_GRID_MAX_RANGE;
+	   		int px = (int)(robot.pos.y / map_resolution) + GLOBAL_GRID_MAX_RANGE;
 	   		circle(colorgrid, Point(px,py), 8, 0x00FFFF, -1);
    		}
    		resize(colorgrid, szgmap, cvSize(1280, 720));
@@ -788,9 +770,9 @@ void runwithSavedData()
 
 					if(sqrt(dx * dx + dy * dy) < 0.5)
 					{
-						robot.Q +=  dq;
-						robot.pos.x += dx;
-						robot.pos.y += dy;
+						// robot.Q +=  dq;
+						// robot.pos.x += dx;
+						// robot.pos.y += dy;
 						printf("update dx: %f dy: %f dq: %f\n",dx, dy, dq);
 					}
 					else
@@ -843,12 +825,12 @@ void runwithSavedData()
 
 			printf("update: %f %f %f %f \n", dx, dy,dangle, residual);
 
-			if (0)
+			if (1)
 			{
 				
 			  	robot.Q += dangle;
-				robot.pos.x -= dx ;
-				robot.pos.y -= dy ;
+				robot.pos.x += dx ;
+				robot.pos.y += dy ;
 			}
 
 			// memset(g_grid, 128, sizeof(g_grid));
@@ -915,9 +897,9 @@ int main()
 	clearFile("lidar.txt");
 	clearFile("imu.txt");
 	//runWithSensors();
-	// runOnDataset();
+	runOnDataset();
 
-	runwithSavedData();
+	// runwithSavedData();
 
 	return 0;
 }
