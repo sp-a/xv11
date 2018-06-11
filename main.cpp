@@ -281,9 +281,9 @@ void runOnDataset()
    		Mat fliplocal, hfliplocal;
    		flip(szlmap, fliplocal, 0);
    		flip(fliplocal, hfliplocal, 1);
-   		imshow( "Local map" , fliplocal );                   // Show our image inside it.
+   		//imshow( "Local map" , fliplocal );                   // Show our image inside it.
 
-   		Mat lmmap(GLOBAL_GRID_SIZE, GLOBAL_GRID_SIZE, CV_8UC1,255);
+   		Mat lmmap(GLOBAL_GRID_SIZE, GLOBAL_GRID_SIZE, CV_8UC1, 150);
    		namedWindow( "Landmarks", WINDOW_AUTOSIZE );// Create a window for display.
    		Mat colorlm, szlm;
 	   	cv::cvtColor(lmmap, colorlm, cv::COLOR_GRAY2BGR);
@@ -293,10 +293,14 @@ void runOnDataset()
 	   		int px0 = (int)(sg_db[i].edges[0].y / map_resolution) + GLOBAL_GRID_MAX_RANGE;
 	   		int py1 = (int)(sg_db[i].edges[1].x / map_resolution) + GLOBAL_GRID_MAX_RANGE;
 	   		int px1 = (int)(sg_db[i].edges[1].y / map_resolution) + GLOBAL_GRID_MAX_RANGE;
-	   		line(colorlm, Point(px0,py0), Point(px1,py1), 0x88, 2);
+	   		if(sg_db[i].seen < 10)
+	   			line(colorlm, Point(px0,py0), Point(px1,py1), CV_RGB(0, 128, 0), 4);
+	   		else
+	   			line(colorlm, Point(px0,py0), Point(px1,py1), CV_RGB(128, 0, 0), 4);
 	   	}
 	   	resize(colorlm, szlm, cvSize(640, 480));
 	   	imshow( "Landmarks" , szlm ); 
+	   	moveWindow("Landmarks", 20,500);
 
    		Mat scan(LOCAL_GRID_SIZE, LOCAL_GRID_SIZE, CV_8UC1, grid);
 		namedWindow( "Scan", WINDOW_AUTOSIZE );// Create a window for display.
@@ -312,9 +316,9 @@ void runOnDataset()
 	   		int py1 = (int)(segments[i].edges[1].x / map_resolution) + LOCAL_GRID_MAX_RANGE;
 	   		int px1 = (int)(segments[i].edges[1].y / map_resolution) + LOCAL_GRID_MAX_RANGE;
 	   		if(match_sg[i] == -1)
-	   			line(colorgrid, Point(px0,py0), Point(px1,py1), 0x88, 2);
+	   			line(colorgrid, Point(px0,py0), Point(px1,py1), CV_RGB(0, 128, 0), 2);	   			
 	   		else
-	   			line(colorgrid, Point(px0,py0), Point(px1,py1), 0x2222, 2);
+	   			line(colorgrid, Point(px0,py0), Point(px1,py1), CV_RGB(128, 0, 0), 2);
 	   	}
 	   	circle(colorgrid, Point(LOCAL_GRID_MAX_RANGE, LOCAL_GRID_MAX_RANGE), 8, CV_RGB(50, 50, 50), -1);
 		line(colorgrid, Point(LOCAL_GRID_MAX_RANGE, LOCAL_GRID_MAX_RANGE), Point(LOCAL_GRID_MAX_RANGE, LOCAL_GRID_MAX_RANGE+8),  CV_RGB(0, 0, 0), 2);
@@ -323,6 +327,7 @@ void runOnDataset()
 	   	flip(szscan, flipscan,0);
 	   	flip(flipscan, hflipscan,0);
 	   	imshow( "Scan" , flipscan );                   // Show our image inside it.
+	   	moveWindow("Scan", 20,20);
 
    		Mat gmap(GLOBAL_GRID_SIZE, GLOBAL_GRID_SIZE, CV_8UC1, g_grid);
 		namedWindow( "Local map", WINDOW_AUTOSIZE );// Create a window for display.
@@ -341,6 +346,7 @@ void runOnDataset()
    		}
    		resize(colorgrid, szgmap, cvSize(1280, 720));
    		imshow( "Global map" , szgmap );                   // Show our image inside it.
+   		moveWindow("Global map", 640,20);
   		waitKey(1); 	
 	}
 
