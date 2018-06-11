@@ -74,7 +74,7 @@ double angle_diff(double a, double b)
 
 void runOnDataset()
 {
-	FeatureDetector detect(10, 40, (float)0.01, 50);
+	FeatureDetector detect(10, 30, (float)0.005, 50);
 
 	int num_odometry_samples = readOdometryFromFile(odometry, MAX_ODOMETRY_SAMPLES);
 	int num_lidar_samples    = readLidarFromFile(lidar, MAX_LIDAR_SAMPLES);
@@ -108,6 +108,7 @@ void runOnDataset()
 
 		float odom[3];
 		//getCurrentOdometry(&robot, time, odom);
+		// if(iter < 400) continue;
 		int num_points = convertLidarToSamplePoint(lidar[iter], data_points, num_lidar_samples);
 		int num_segments = 0;
 		//if (1)
@@ -139,8 +140,8 @@ void runOnDataset()
 			printf("update: %f %f %f %f \n", dx, dy,dangle, residual);
 
 			robot.Q += dangle;
-			// robot.pos.x += odom[0] ;
-			// robot.pos.y += odom[1] ;
+			// robot.pos.x += dx ;
+			// robot.pos.y += dy ;
 
 			while(robot.Q > 2* PI)
 		 		robot.Q -= 2 * PI;
@@ -163,18 +164,20 @@ void runOnDataset()
 					float pdist = abs(sg_db[j].m * temp_sg.middle.x - temp_sg.middle.y + sg_db[j].n) / 
 									sqrt(sg_db[j].m*sg_db[j].m + 1);
 					float ldif = abs(sg_length(temp_sg) - sg_length(sg_db[j]));
-					if(slope_dif(temp_sg.slope, sg_db[j].slope) < PI / 12 && pdist < 0.2 && mdist < 1.0)
+					if(slope_dif(temp_sg.slope, sg_db[j].slope) < PI / 36 && pdist < 0.6 && mdist < 1.0)
 					{
-						if(best_cost > mdist * 10 + ldif)
+						if(best_cost > mdist * 10 + pdist)
 						{
+
 							match_sg[i] = j;
-							best_cost = mdist * 10 + ldif;
+							best_cost = mdist * 10 + pdist;
 						}
 					}
 				}
 
 				if(match_sg[i] != -1)
 				{
+					sg_db[match_sg[i]].seen ++;
 					float slope0 = temp_sg.slope;
 					float slope1 = sg_db[match_sg[i]].slope;
 					float dq;
@@ -215,8 +218,8 @@ void runOnDataset()
 					float dx = x2 - sg0.middle.x;
 					float dy = y2 - sg0.middle.y;
 
-					robot.pos.x += 0.6 * dx;
-					robot.pos.y += 0.6 * dy;
+					robot.pos.x += dx;
+					robot.pos.y += dy;
 
 					}
 				}
@@ -230,7 +233,7 @@ void runOnDataset()
 			// int count = 0;
 			// for(int i = 0 ; i < num_sg_db; ++i  )
 			// {
-			// 	if(++sg_db[i].age < 40)
+			// 	if(!(sg_db[i].seen < 5 && ++sg_db[i].age > 20))
 			// 		sg_db[count++] = sg_db[i];
 			// }
 			// num_sg_db = count;
@@ -246,13 +249,28 @@ void runOnDataset()
 					temp_sg.seen = 1;
 					if(temp_sg.slope < 0)
 						temp_sg.slope += PI;
+					int good = 1;
+					for(int j = 0; j < num_sg_db ; ++j )
+					{
+						float mdist = distance(temp_sg.middle, sg_db[j].middle);
+						float pdist = abs(sg_db[j].m * temp_sg.middle.x - temp_sg.middle.y + sg_db[j].n) / 
+										sqrt(sg_db[j].m*sg_db[j].m + 1);
+						if(mdist < 1 || pdist < 1)
+						{
+							good = 0;
+							if(sg_length(temp_sg) > sg_length(sg_db[j]))
+							{
+								sg_db[j] = temp_sg;
+							}
+							break;
+						}
+					}
 					sg_db[num_sg_db++] = temp_sg;
 				}
 
 			// memset(g_grid, 128, sizeof(g_grid));
 			update_map(g_grid, GLOBAL_GRID_MAX_RANGE, grid, LOCAL_GRID_MAX_RANGE,
 			 		   robot.Q, roundf(robot.pos.x / map_resolution), roundf(robot.pos.y / map_resolution));
-
 		}
 
 		Mat lmap(LOCAL_GRID_PADDED_SIZE, LOCAL_GRID_PADDED_SIZE, CV_8UC1 ,l_grid);
@@ -260,8 +278,9 @@ void runOnDataset()
    		Mat invlmap, szlmap;
    		bitwise_not ( lmap, invlmap ); //(, invgrid, 0, 255, CV_THRESH_BINARY_INV);
    		resize(invlmap, szlmap, cvSize(640, 480));
-   		Mat fliplocal;
+   		Mat fliplocal, hfliplocal;
    		flip(szlmap, fliplocal, 0);
+   		flip(fliplocal, hfliplocal, 1);
    		imshow( "Local map" , fliplocal );                   // Show our image inside it.
 
    		Mat lmmap(GLOBAL_GRID_SIZE, GLOBAL_GRID_SIZE, CV_8UC1,255);
@@ -299,9 +318,10 @@ void runOnDataset()
 	   	}
 	   	circle(colorgrid, Point(LOCAL_GRID_MAX_RANGE, LOCAL_GRID_MAX_RANGE), 8, CV_RGB(50, 50, 50), -1);
 		line(colorgrid, Point(LOCAL_GRID_MAX_RANGE, LOCAL_GRID_MAX_RANGE), Point(LOCAL_GRID_MAX_RANGE, LOCAL_GRID_MAX_RANGE+8),  CV_RGB(0, 0, 0), 2);
-	   	resize(colorgrid, szscan, cvSize(1280, 720));
-	   	Mat flipscan;
+	   	resize(colorgrid, szscan, cvSize(640, 480));
+	   	Mat flipscan, hflipscan;
 	   	flip(szscan, flipscan,0);
+	   	flip(flipscan, hflipscan,0);
 	   	imshow( "Scan" , flipscan );                   // Show our image inside it.
 
    		Mat gmap(GLOBAL_GRID_SIZE, GLOBAL_GRID_SIZE, CV_8UC1, g_grid);

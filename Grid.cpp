@@ -184,7 +184,8 @@ void update_map(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int g_range,
 
 			int val = l_grid[x + l_range][y + l_range];
 			if(val == 128) continue;
-			// if(val == 0) continue;
+			if(val == 80 && g_grid[rx + tx][ry + ty] > 128)
+				val = 128;
 
 			if(0) // Bayes filter
 			{
@@ -318,14 +319,14 @@ void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], in
 				}
 
 				dangle = -dangle;
-				if (dangle >= 0) dangle += 1 * 0.0174532925;
+				if (dangle >= 0) dangle += 2 * 0.0174532925;
 			}
 
 			dy = -dy;
-			if (dy >= 0) dy += 1;
+			if (dy >= 0) dy += 2;
 		}
 		dx = -dx;
-		if (dx >= 0) dx += 1;
+		if (dx >= 0) dx += 2;
 	}
 
 	// for (float dx = best_dx; dx <= best_dx + 1; )
