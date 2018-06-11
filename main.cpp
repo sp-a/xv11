@@ -74,7 +74,7 @@ double angle_diff(double a, double b)
 
 void runOnDataset()
 {
-	FeatureDetector detect(10, 30, (float)0.01, 50);
+	FeatureDetector detect(10, 40, (float)0.01, 50);
 
 	int num_odometry_samples = readOdometryFromFile(odometry, MAX_ODOMETRY_SAMPLES);
 	int num_lidar_samples    = readLidarFromFile(lidar, MAX_LIDAR_SAMPLES);
@@ -108,7 +108,6 @@ void runOnDataset()
 
 		float odom[3];
 		//getCurrentOdometry(&robot, time, odom);
-		if(iter < 500) continue;
 		int num_points = convertLidarToSamplePoint(lidar[iter], data_points, num_lidar_samples);
 		int num_segments = 0;
 		//if (1)
@@ -161,8 +160,10 @@ void runOnDataset()
 				for(int j = 0 ; j < num_sg_db; ++ j)
 				{
 					float mdist = distance(temp_sg.middle, sg_db[j].middle);
+					float pdist = abs(sg_db[j].m * temp_sg.middle.x - temp_sg.middle.y + sg_db[j].n) / 
+									sqrt(sg_db[j].m*sg_db[j].m + 1);
 					float ldif = abs(sg_length(temp_sg) - sg_length(sg_db[j]));
-					if(slope_dif(temp_sg.slope, sg_db[j].slope) < PI / 12 && mdist < 0.5 && ldif < 0.2)
+					if(slope_dif(temp_sg.slope, sg_db[j].slope) < PI / 12 && pdist < 0.2 && mdist < 1.0)
 					{
 						if(best_cost > mdist * 10 + ldif)
 						{
@@ -196,7 +197,7 @@ void runOnDataset()
 					}
 
 					printf("update db: %f sg: %f dq: %f\n",sg_db[match_sg[i]].slope, temp_sg.slope, dq);
-					//robot.Q += dq;
+					robot.Q += dq;
 
 					segment_t sg0 = segments[i];
 					transform_segment(&sg0, robot.pos.x, robot.pos.y, robot.Q);
@@ -214,8 +215,8 @@ void runOnDataset()
 					float dx = x2 - sg0.middle.x;
 					float dy = y2 - sg0.middle.y;
 
-					// robot.pos.x += dx;
-					// robot.pos.y += dy;
+					robot.pos.x += 0.6 * dx;
+					robot.pos.y += 0.6 * dy;
 
 					}
 				}
@@ -226,13 +227,13 @@ void runOnDataset()
 			num_states ++;
 
 			// remove old segments
-			int count = 0;
-			for(int i = 0 ; i < num_sg_db; ++i  )
-			{
-				if(++sg_db[i].age < 40)
-					sg_db[count++] = sg_db[i];
-			}
-			num_sg_db = count;
+			// int count = 0;
+			// for(int i = 0 ; i < num_sg_db; ++i  )
+			// {
+			// 	if(++sg_db[i].age < 40)
+			// 		sg_db[count++] = sg_db[i];
+			// }
+			// num_sg_db = count;
 
 			printf("update segment database:\n");
 			// Add new features
@@ -254,7 +255,7 @@ void runOnDataset()
 
 		}
 
-		Mat lmap(LOCAL_GRID_PADDED_SIZE, LOCAL_GRID_PADDED_SIZE,CV_8UC1,l_grid);
+		Mat lmap(LOCAL_GRID_PADDED_SIZE, LOCAL_GRID_PADDED_SIZE, CV_8UC1 ,l_grid);
 		namedWindow( "Local map", WINDOW_AUTOSIZE );// Create a window for display.
    		Mat invlmap, szlmap;
    		bitwise_not ( lmap, invlmap ); //(, invgrid, 0, 255, CV_THRESH_BINARY_INV);
@@ -263,12 +264,20 @@ void runOnDataset()
    		flip(szlmap, fliplocal, 0);
    		imshow( "Local map" , fliplocal );                   // Show our image inside it.
 
-  //  		Mat scan(LOCAL_GRID_SIZE, LOCAL_GRID_SIZE, CV_8UC1, grid);
-		// namedWindow( "Scan", WINDOW_AUTOSIZE );// Create a window for display.
-  //  		Mat invscan, szscan;
-  //  		bitwise_not ( scan, invscan ); //(, invgrid, 0, 255, CV_THRESH_BINARY_INV);
-  //  		resize(invscan, szscan, cvSize(640, 480));
-  //  		imshow( "Scan" , szscan );                   // Show our image inside it.
+   		Mat lmmap(GLOBAL_GRID_SIZE, GLOBAL_GRID_SIZE, CV_8UC1,255);
+   		namedWindow( "Landmarks", WINDOW_AUTOSIZE );// Create a window for display.
+   		Mat colorlm, szlm;
+	   	cv::cvtColor(lmmap, colorlm, cv::COLOR_GRAY2BGR);
+	   	for(int i = 0 ; i < num_sg_db ; ++i )
+	   	{
+	   		int py0 = (int)(sg_db[i].edges[0].x / map_resolution) + GLOBAL_GRID_MAX_RANGE;
+	   		int px0 = (int)(sg_db[i].edges[0].y / map_resolution) + GLOBAL_GRID_MAX_RANGE;
+	   		int py1 = (int)(sg_db[i].edges[1].x / map_resolution) + GLOBAL_GRID_MAX_RANGE;
+	   		int px1 = (int)(sg_db[i].edges[1].y / map_resolution) + GLOBAL_GRID_MAX_RANGE;
+	   		line(colorlm, Point(px0,py0), Point(px1,py1), 0x88, 2);
+	   	}
+	   	resize(colorlm, szlm, cvSize(640, 480));
+	   	imshow( "Landmarks" , szlm ); 
 
    		Mat scan(LOCAL_GRID_SIZE, LOCAL_GRID_SIZE, CV_8UC1, grid);
 		namedWindow( "Scan", WINDOW_AUTOSIZE );// Create a window for display.
