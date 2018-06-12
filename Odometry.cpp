@@ -87,7 +87,7 @@ void evolve(robot_state_t *robot, float time)
 
 	while (o_index < num_samples && odometry_data[o_index].ts < time)
 	{
-		if (0)
+		if (1)
 		{
 			float dx = odometry_data[o_index].x - odometry_data[o_index - 1].x;
 			float dy = odometry_data[o_index].y - odometry_data[o_index - 1].y;

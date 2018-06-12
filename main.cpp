@@ -101,14 +101,14 @@ void runOnDataset()
 		float time = lidar[iter].ts; // current time
 		int dangle, dx, dy;
 
-		evolve(&robot, time);
+		//evolve(&robot, time);
 		while(robot.Q > 2* PI)
 		  	robot.Q -= 2 * PI;
 		while(robot.Q <  0)
 		  	robot.Q += 2 * PI;
 
 		float odom[3];
-		//getCurrentOdometry(&robot, time, odom);
+		getCurrentOdometry(&robot, time, odom);
 		int num_points = convertLidarToSamplePoint(lidar[iter], data_points, num_lidar_samples);
 		int num_segments = 0;
 		//if (1)
@@ -140,8 +140,8 @@ void runOnDataset()
 			printf("update: %f %f %f %f \n", dx, dy,dangle, residual);
 
 			robot.Q += dangle;
-			// robot.pos.x += dx ;
-			// robot.pos.y += dy ;
+			robot.pos.x += odom[0] ;
+			robot.pos.y += odom[1] ;
 
 			while(robot.Q > 2* PI)
 		 		robot.Q -= 2 * PI;

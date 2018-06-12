@@ -193,7 +193,7 @@ void update_map(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int g_range,
 			int val = l_grid[x + l_range][y + l_range];
 			if(val == 128) continue;
 			if(val == mark_free && g_grid[rx + tx][ry + ty] > 128)
-				val = 128;
+			 val = 128;
 
 			if(bayes) // Bayes filter
 			{
@@ -298,11 +298,11 @@ void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], in
 	int best_cost = 1000000000;
 	float best_dx, best_dy, best_dangle, best_matches;
 	
-	for (float dx = 0; dx <= 10 ; )
+	for (float dx = 0; dx <= 4 ; )
 	{
-		for (float dy = 0; dy <= 10; )
+		for (float dy = 0; dy <= 4; )
 		{
-			for (float dangle = 0; dangle <= 30 * 0.0174532925; )
+			for (float dangle = 0; dangle <= 20 * 0.0174532925; )
 			{
 				int cost = 0;
 
