@@ -49,6 +49,7 @@ int num_lm_db = 0;
 
 uint8_t grid[LOCAL_GRID_SIZE][LOCAL_GRID_SIZE];
 uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE];
+uint8_t v_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE];
 uint8_t l_grid[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE];
 uint8_t pp_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE];
 
@@ -92,7 +93,7 @@ void runOnDataset()
 
 	for(int i = 0; i < GLOBAL_GRID_SIZE ; ++i )
 		for(int j = 0; j < GLOBAL_GRID_SIZE; ++j)
-			g_grid[i][j] = 128; // unknown
+			g_grid[i][j] = v_grid[i][j] = 128; // unknown
 
 
 	for (int iter = 0; iter < num_lidar_samples; ++iter) {
@@ -108,7 +109,6 @@ void runOnDataset()
 
 		float odom[3];
 		//getCurrentOdometry(&robot, time, odom);
-		// if(iter < 400) continue;
 		int num_points = convertLidarToSamplePoint(lidar[iter], data_points, num_lidar_samples);
 		int num_segments = 0;
 		//if (1)
@@ -270,7 +270,9 @@ void runOnDataset()
 
 			// memset(g_grid, 128, sizeof(g_grid));
 			update_map(g_grid, GLOBAL_GRID_MAX_RANGE, grid, LOCAL_GRID_MAX_RANGE,
-			 		   robot.Q, roundf(robot.pos.x / map_resolution), roundf(robot.pos.y / map_resolution));
+			 		   robot.Q, roundf(robot.pos.x / map_resolution), roundf(robot.pos.y / map_resolution), 0);
+			update_map(v_grid, GLOBAL_GRID_MAX_RANGE, grid, LOCAL_GRID_MAX_RANGE,
+			 		   robot.Q, roundf(robot.pos.x / map_resolution), roundf(robot.pos.y / map_resolution), 1);
 		}
 
 		Mat lmap(LOCAL_GRID_PADDED_SIZE, LOCAL_GRID_PADDED_SIZE, CV_8UC1 ,l_grid);
@@ -329,7 +331,7 @@ void runOnDataset()
 	   	imshow( "Scan" , flipscan );                   // Show our image inside it.
 	   	moveWindow("Scan", 20,20);
 
-   		Mat gmap(GLOBAL_GRID_SIZE, GLOBAL_GRID_SIZE, CV_8UC1, g_grid);
+   		Mat gmap(GLOBAL_GRID_SIZE, GLOBAL_GRID_SIZE, CV_8UC1, v_grid);
 		namedWindow( "Local map", WINDOW_AUTOSIZE );// Create a window for display.
    		Mat invgmap, szgmap;
    		bitwise_not ( gmap, invgmap ); //(, invgrid, 0, 255, CV_THRESH_BINARY_INV);
@@ -516,7 +518,7 @@ void runWithSensors()
 			}
 			// memset(g_grid, 128, sizeof(g_grid));
 			update_map(g_grid, GLOBAL_GRID_MAX_RANGE, grid, LOCAL_GRID_MAX_RANGE,
-					   robot.Q, roundf(robot.pos.x / 0.05), roundf(robot.pos.y / 0.05));
+					   robot.Q, roundf(robot.pos.x / 0.05), roundf(robot.pos.y / 0.05),  0);
                                        // Wait for a keystroke in the window
 
 			Mat lmap(LOCAL_GRID_PADDED_SIZE, LOCAL_GRID_PADDED_SIZE,CV_8UC1,l_grid);
@@ -870,7 +872,7 @@ void runwithSavedData()
 
 			// memset(g_grid, 128, sizeof(g_grid));
 			update_map(g_grid, GLOBAL_GRID_MAX_RANGE, grid, LOCAL_GRID_MAX_RANGE,
-					   robot.Q, roundf(robot.pos.x / 0.05), roundf(robot.pos.y / 0.05));
+					   robot.Q, roundf(robot.pos.x / 0.05), roundf(robot.pos.y / 0.05),0);
 
 			Mat scan(LOCAL_GRID_SIZE, LOCAL_GRID_SIZE, CV_8UC1, grid);
 			namedWindow( "Scan", WINDOW_AUTOSIZE );// Create a window for display.

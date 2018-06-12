@@ -11,7 +11,7 @@ int extract_local_points(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int
 	point_t *points, int l_range, float angle, int rx, int ry);
 void update_map(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int g_range,
 	uint8_t l_grid[LOCAL_GRID_SIZE][LOCAL_GRID_SIZE], int l_range,
-	float angle, int rx, int ry);
+	float angle, int rx, int ry,  int bayes);
 // void scan_to_map(uint8_t l_grid[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], int l_range,
 // 	point_t *data, int num_data, float *angle, float *rx, float *ry, int *cost,  int *matches);
 void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], int g_range,

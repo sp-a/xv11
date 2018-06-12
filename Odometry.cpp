@@ -61,7 +61,7 @@ void getCurrentOdometry(robot_state_t *robot, float time, float *odom)
 		}
 	}
 }
-
+// #define CORRECTED_LOG 1
 void evolve(robot_state_t *robot, float time)
 {
 	float time_diff;
@@ -102,6 +102,11 @@ void evolve(robot_state_t *robot, float time)
 			robot->pos.y += dtrans * sin(robot->Q + drot1);
 			robot->Q += dQ;
 
+#ifdef CORRECTED_LOG
+			robot->pos.x = odometry_data[o_index].x;
+			robot->pos.y = odometry_data[o_index].y;
+			robot->Q = odometry_data[o_index].Q;
+#endif
 			robot->ts = odometry_data[o_index].ts;
 		}
 		else

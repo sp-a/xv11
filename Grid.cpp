@@ -9,6 +9,7 @@ int occ[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE];
 int last_seen[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE];
 
 float cos_lut[360], sin_lut[360];
+int mark_free = 100;
 
 void init_trig_lut()
 {
@@ -28,7 +29,7 @@ void get_local_ocupancy_grid(point_t *data, int num_data, uint8_t grid[LOCAL_GRI
 							 float step, int grid_size)
 {
 	// Initialize local grid with unknown state
-	int free = 10;
+
 	int size = grid_size * 2 + 1;
 	int max_index = size * size;
 	for (int i = 0; i < size; ++i)
@@ -79,11 +80,18 @@ void get_local_ocupancy_grid(point_t *data, int num_data, uint8_t grid[LOCAL_GRI
 		int num_p = (int)sqrt( data[i].x * data[i].x + data[i].y * data[i].y) / step;
 		//printf("num_p: %d %f %f\n" , num_p, data[i].x, data[i].y);
 		// A(0, 0), B(data[i].x, data[i].y)
-		for(int k1 = 1; k1 < num_p - 1 ; ++k1 )
+		for(int k1 = 1; k1 < num_p - 2 ; ++k1 )
 		{
 			int x = (int)roundf(k1 * data[i].x / (num_p * step)) + grid_size;
 			int y = (int)roundf(k1 * data[i].y / (num_p * step)) + grid_size;
-				grid[x][y] = free; // free
+				grid[x][y] = mark_free; // free
+		}
+		for(int delta = -2; delta >= 2 ; ++delta)
+		{
+			int k = num_p + delta;
+			int x = (int)roundf(k * data[i].x / (num_p * step)) + grid_size;
+			int y = (int)roundf(k * data[i].y / (num_p * step)) + grid_size;
+			grid[x][y] = mark_free + abs(delta) * (256 - mark_free) / 2; // free
 		}
 	}
 
@@ -92,9 +100,9 @@ void get_local_ocupancy_grid(point_t *data, int num_data, uint8_t grid[LOCAL_GRI
 		for(int j = 1; j < size - 1; ++j )
 		{
 			if(grid[i][j] != 128) continue; // only unknown cells
-				if(grid[i-1][j] == free && grid[i+1][j] == free && 
-				   grid[i-1][j] == free && grid[i+1][j] == free)
-						grid[i][j] = free; // mark as free
+				if(grid[i-1][j] == mark_free && grid[i+1][j] == mark_free && 
+				   grid[i-1][j] == mark_free && grid[i+1][j] == mark_free)
+						grid[i][j] = mark_free; // mark as free
 		}
 }
 
@@ -167,7 +175,7 @@ int extract_local_points(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int
 }
 
 void update_map(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int g_range,
-	uint8_t l_grid[LOCAL_GRID_SIZE][LOCAL_GRID_SIZE], int l_range, float angle, int rx, int ry)
+	uint8_t l_grid[LOCAL_GRID_SIZE][LOCAL_GRID_SIZE], int l_range, float angle, int rx, int ry, int bayes)
 {
 	int g_size = g_range * 2 + 1;
 	static int iter = 0;
@@ -184,10 +192,10 @@ void update_map(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int g_range,
 
 			int val = l_grid[x + l_range][y + l_range];
 			if(val == 128) continue;
-			if(val == 80 && g_grid[rx + tx][ry + ty] > 128)
+			if(val == mark_free && g_grid[rx + tx][ry + ty] > 128)
 				val = 128;
 
-			if(0) // Bayes filter
+			if(bayes) // Bayes filter
 			{
 				float Px = (float)val / 256;
 				float trx = Px / (1 - Px);
@@ -294,7 +302,7 @@ void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], in
 	{
 		for (float dy = 0; dy <= 10; )
 		{
-			for (float dangle = 0; dangle <= 20 * 0.0174532925; )
+			for (float dangle = 0; dangle <= 30 * 0.0174532925; )
 			{
 				int cost = 0;
 
@@ -319,7 +327,7 @@ void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], in
 				}
 
 				dangle = -dangle;
-				if (dangle >= 0) dangle += 2 * 0.0174532925;
+				if (dangle >= 0) dangle += 1 * 0.0174532925;
 			}
 
 			dy = -dy;
