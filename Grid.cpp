@@ -86,12 +86,13 @@ void get_local_ocupancy_grid(point_t *data, int num_data, uint8_t grid[LOCAL_GRI
 			int y = (int)roundf(k1 * data[i].y / (num_p * step)) + grid_size;
 				grid[x][y] = mark_free; // free
 		}
-		for(int delta = -2; delta >= 2 ; ++delta)
+
+		for(int delta = -2; delta <= 2 ; ++delta)
 		{
 			int k = num_p + delta;
 			int x = (int)roundf(k * data[i].x / (num_p * step)) + grid_size;
 			int y = (int)roundf(k * data[i].y / (num_p * step)) + grid_size;
-			grid[x][y] = mark_free + abs(delta) * (256 - mark_free) / 2; // free
+			grid[x][y] = 255 - abs(delta) * 64; 
 		}
 	}
 
@@ -298,9 +299,9 @@ void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], in
 	int best_cost = 1000000000;
 	float best_dx, best_dy, best_dangle, best_matches;
 	
-	for (float dx = 0; dx <= 4 ; )
+	for (float dx = 0; dx <= 8 ; )
 	{
-		for (float dy = 0; dy <= 4; )
+		for (float dy = 0; dy <= 8; )
 		{
 			for (float dangle = 0; dangle <= 20 * 0.0174532925; )
 			{
@@ -331,10 +332,10 @@ void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], in
 			}
 
 			dy = -dy;
-			if (dy >= 0) dy += 2;
+			if (dy >= 0) dy += 1;
 		}
 		dx = -dx;
-		if (dx >= 0) dx += 2;
+		if (dx >= 0) dx += 1;
 	}
 
 	// for (float dx = best_dx; dx <= best_dx + 1; )
