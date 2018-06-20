@@ -7,8 +7,8 @@
 #include <list>
 #include "customTypes.h"
 
-int readOdometryFromFile(odometry_t *, int);
-int readLidarFromFile(lidar_t*, int);
+int readOdometryFromFile(char*, odometry_t *, int);
+int readLidarFromFile(char*, lidar_t*, int);
 
 void clearFile(const char *);
 int writeOdometryToFile(vector<odometry_t>, const char *);

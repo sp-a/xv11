@@ -1,6 +1,6 @@
 #pragma once
 
-void runOnDataset();
+void runOnDataset(char *filename);
 
 void runWithSensors();
 

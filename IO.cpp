@@ -7,8 +7,6 @@
 #include <unistd.h>
 #include <sys/time.h>
 
-static const char* logFile = "Datasets/dataset.log";
-
 #define PI 3.14159265359
 
 int
@@ -77,7 +75,7 @@ set_blocking (int fd, int should_block)
 }
 
 
-int readOdometryFromFile(odometry_t *odometry, int max_num_readings)
+int readOdometryFromFile(char *logFile, odometry_t *odometry, int max_num_readings)
 {
 	char line[16 * 1024];
 	odometry_t odo;
@@ -123,7 +121,7 @@ int writeOdometryToFile(vector<odometry_t> odometry, const char * filename)
 	return 0;
 }
 
-int readLidarFromFile(lidar_t* lidar, int max_num_readings)
+int readLidarFromFile(char *logFile, lidar_t* lidar, int max_num_readings)
 {
 	char line[64 * 1024];
 	lidar_t raw;

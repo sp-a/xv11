@@ -71,12 +71,12 @@ double angle_diff(double a, double b)
 	return min(abs(q1-q2), abs(q1 + 2 * PI -q2));
 }
 
-void runOnDataset()
+void runOnDataset(char *filename)
 {
 	FeatureDetector detect(10, 30, (float)0.005, 50);
 
-	int num_odometry_samples = readOdometryFromFile(odometry, MAX_ODOMETRY_SAMPLES);
-	int num_lidar_samples    = readLidarFromFile(lidar, MAX_LIDAR_SAMPLES);
+	int num_odometry_samples = readOdometryFromFile(filename, odometry, MAX_ODOMETRY_SAMPLES);
+	int num_lidar_samples    = readLidarFromFile(filename, lidar, MAX_LIDAR_SAMPLES);
 	clearFile("Logs/state.txt");
 
 	init_trig_lut();
