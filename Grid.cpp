@@ -1,7 +1,5 @@
 #include "Grid.h"
 #include "Geometry.h"
-#include "icpPointToPlane.h"
-#include "icpPointToPoint.h"
 
 int freq[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE];
 int occ[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE];
@@ -90,9 +88,11 @@ void get_local_ocupancy_grid(point_t *data, int num_data, uint8_t grid[LOCAL_GRI
 		for(int delta = -2; delta <= 2 ; ++delta)
 		{
 			int k = num_p + delta;
-			int x = (int)roundf(k * data[i].x / (num_p * step)) + grid_size;
-			int y = (int)roundf(k * data[i].y / (num_p * step)) + grid_size;
-			grid[x][y] = 255 - abs(delta) * 64; 
+			if(num_p * step){
+				int x = (int)roundf(k * data[i].x / (num_p * step)) + grid_size;
+				int y = (int)roundf(k * data[i].y / (num_p * step)) + grid_size;
+				grid[x][y] = 255 - abs(delta) * 64;
+			} 
 		}
 	}
 
@@ -337,46 +337,6 @@ void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], in
 		dx = -dx;
 		if (dx >= 0) dx += 1;
 	}
-
-	// for (float dx = best_dx; dx <= best_dx + 1; )
-	// {
-	// 	for (float dy = best_dy; dy <= best_dy + 1; )
-	// 	{
-	// 		for (float dangle = best_dangle; dangle <= best_dangle + 3 * 0.0174532925; )
-	// 		{
-	// 			int cost = 0;
-
-	// 			for(int ind = 0; ind < num_scan ; ++ind)
-	// 			{
-	// 				float nx = cos(dangle) * scan[ind].x - sin(dangle) * scan[ind].y + dx;
-	// 				float ny = sin(dangle) * scan[ind].x + cos(dangle) * scan[ind].y + dy;
-
-	// 				int dnx = (int)roundf(nx) + g_range;
-	// 				int dny = (int)roundf(ny) + g_range;
-
-	// 				cost += 255 - map[dnx][dny];
-	// 			}
-
-	// 			if (cost < best_cost)
-	// 			{
-	// 				best_cost = cost;
-	// 				best_dx = dx;
-	// 				best_dy = dy;
-	// 				best_dangle = dangle;
-	// 				// printf("    transform: %f %f %f cost %d\n", dangle, dx, dy, cost);
-	// 			}
-
-	// 			dangle = -dangle;
-	// 			if (dangle >= 0) dangle += 0.25 * 0.0174532925;
-	// 		}
-
-	// 		dy = -dy;
-	// 		if (dy >= 0) dy += 0.25;
-	// 	}
-	// 	dx = -dx;
-	// 	if (dx >= 0) dx += 0.25;
-	// }
-
 
 	*angle = best_dangle;
 	*rx = best_dx;

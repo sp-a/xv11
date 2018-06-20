@@ -5,9 +5,9 @@
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
- #include <sys/time.h>
+#include <sys/time.h>
 
-static const char* logFile = "dataset.log";
+static const char* logFile = "Datasets/dataset.log";
 
 #define PI 3.14159265359
 

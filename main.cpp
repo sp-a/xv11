@@ -16,9 +16,6 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 
-#include "icpPointToPlane.h"
-#include "icpPointToPoint.h"
-
 // using namespace Eigen;
 using namespace std;
 using namespace cv;
@@ -79,12 +76,7 @@ void runOnDataset()
 
 	int num_odometry_samples = readOdometryFromFile(odometry, MAX_ODOMETRY_SAMPLES);
 	int num_lidar_samples    = readLidarFromFile(lidar, MAX_LIDAR_SAMPLES);
-
-	clearFile("data_points.txt");
-	clearFile("landmarks.txt");
-	clearFile("segments.txt");
-	clearFile("state.txt");
-	clearFile("grid.txt");
+	clearFile("Logs/state.txt");
 
 	init_trig_lut();
 
@@ -111,13 +103,14 @@ void runOnDataset()
 		// getCurrentOdometry(&robot, time, odom);
 		int num_points = convertLidarToSamplePoint(lidar[iter], data_points, num_lidar_samples);
 		int num_segments = 0;
+
 		//if (1)
 		{
 			int index = iter % 2;
 			get_local_ocupancy_grid(data_points, num_points, grid, map_resolution, LOCAL_GRID_MAX_RANGE);
 
-			// num_segments = detect.extractSegmentsRansac(segments, data_points, num_points);
-			// printf("num segments: %d\n", num_segments);
+			num_segments = detect.extractSegmentsRansac(segments, data_points, num_points);
+			printf("num segments: %d\n", num_segments);
 
 			for(int i = 0 ; i < num_points ; ++i )
 			{
@@ -132,14 +125,14 @@ void runOnDataset()
 			 				   angle, rx, ry);
 
 			float dangle, dx, dy, residual;
-			// scan_to_map(l_grid, LOCAL_GRID_MAX_RANGE + PADDING_SIZE, data_points, num_points,
-			//   	 		&dangle, &dx, &dy, &residual);
+			scan_to_map(l_grid, LOCAL_GRID_MAX_RANGE + PADDING_SIZE, data_points, num_points,
+			   	 		&dangle, &dx, &dy, &residual);
 
 			dx *= map_resolution;
 			dy *= map_resolution;
 			printf("update: %f %f %f %f \n", dx, dy,dangle, residual);
 
-			// robot.Q += dangle;
+			robot.Q += dangle;
 			// robot.pos.x += odom[0] ;
 			// robot.pos.y += odom[1] ;
 
@@ -200,7 +193,7 @@ void runOnDataset()
 					}
 
 					printf("update db: %f sg: %f dq: %f\n",sg_db[match_sg[i]].slope, temp_sg.slope, dq);
-					// robot.Q += dq;
+					robot.Q += dq;
 
 					segment_t sg0 = segments[i];
 					transform_segment(&sg0, robot.pos.x, robot.pos.y, robot.Q);
@@ -218,8 +211,8 @@ void runOnDataset()
 					float dx = x2 - sg0.middle.x;
 					float dy = y2 - sg0.middle.y;
 
-					// robot.pos.x += dx;
-					// robot.pos.y += dy;
+					robot.pos.x += dx;
+					robot.pos.y += dy;
 
 					}
 				}
@@ -636,7 +629,7 @@ void runwithSavedData()
 	robot.Q = 0;
 	FeatureDetector detect(50, 10, (float)0.005, 200);
 
-	FILE *fl = fopen("lidar_dataset.txt", "r");
+	FILE *fl = fopen("Captures/lidar_dataset.txt", "r");
 	while(!feof(fl))
 	{
 		for(int i = 0 ; i < 360; ++i )
@@ -647,7 +640,7 @@ void runwithSavedData()
 	fclose(fl);
 	printf("lidar samples: %d\n", lidar_num);
 
-	FILE *fi = fopen("imu_dataset.txt", "r");
+	FILE *fi = fopen("Captures/imu_dataset.txt", "r");
 	while(!feof(fi))
 	{
 		for(int i = 0 ; i < 12 ; ++i )
@@ -989,10 +982,10 @@ void runwithSavedData()
 
 int main()
 {
-	clearFile("lidar.txt");
-	clearFile("imu.txt");
+	clearFile("Captures/lidar.txt");
+	clearFile("Captures/imu.txt");
 	// runWithSensors();
-	//runOnDataset();
+	// runOnDataset();
 
 	runwithSavedData();
 
