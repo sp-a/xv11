@@ -87,7 +87,7 @@ void evolve(robot_state_t *robot, float time)
 
 	while (o_index < num_samples && odometry_data[o_index].ts < time)
 	{
-		if (1)
+		if (0)
 		{
 			float dx = odometry_data[o_index].x - odometry_data[o_index - 1].x;
 			float dy = odometry_data[o_index].y - odometry_data[o_index - 1].y;
@@ -140,78 +140,3 @@ void predict(robot_state_t* robot, odometry_t odom)
 	robot->ts = odom.ts;
 }
 
-
-// Convert from absolute values to deltas (SIMULATOR) - won't be needed in real world 
-//void preprocessOdometry(odometry_t current, odometry_t &delta)
-//{
-//	static odometry_t prev = { 0, 0, 0 };
-//	static bool first = 1;
-//
-//	if (first) {
-//		prev = current;
-//		first = 0;
-//	}
-//
-//	delta.x = current.x - prev.x;
-//	delta.y = current.y - prev.y;
-//	delta.Q = current.Q - prev.Q;
-//
-//
-//
-//	prev = current;
-//}
-//
-//void processOdometry(state_t &s, odometry_t delta)
-//{
-//	// Evolve
-//	s.X(0, 0) += delta.x;
-//	s.X(1, 0) += delta.y;
-//	s.X(2, 0) += delta.Q;
-//
-//	/*if (gState.X(2) > 3.14)
-//	gState.X(2) -= 2 * 3.14;
-//	if (gState.X(2) < -3.14)
-//	gState.X(2) += 2 * 3.14;*/
-//
-//	// Jacobian of the prediction model
-//	s.A << 1, 0, -delta.y,
-//		0, 1, delta.x,
-//		0, 0, 1;
-//
-//	// SLAM jacobians for feature integration
-//	s.Jxr << 1, 0, -delta.y,
-//		0, 1, delta.x;
-//
-//	// This will be sensor dependent
-//	odometry_t noise;
-//	noise.x = delta.x * 0.1; // 10%
-//	noise.y = delta.y * 0.1; // 10%
-//	noise.Q = delta.Q * 0.1; // 10%
-//							 // Process noise
-//							 /*gState.Q << noise.x * noise.x, noise.x * noise.y, noise.x * noise.Q,
-//							 noise.y * noise.x, noise.y * noise.y, noise.y * noise.Q,
-//							 noise.Q * noise.x, noise.Q * noise.y, noise.Q * noise.Q;*/
-//	s.Q.setZero();
-//	s.Q(0, 0) = noise.x * noise.x;
-//	s.Q(1, 1) = noise.y * noise.y;
-//	s.Q(2, 2) = noise.Q * noise.Q;
-//
-//	//cout << "ODOM q:\n" << gState.Q << endl;
-//
-//	// Update robot covariance
-//	MatrixXf cov = s.P.block(0, 0, 3, 3);
-//	MatrixXf res = s.A * cov * s.A.transpose() + s.Q; // No Jacobian for Q ?
-//													  //cout << "ODOM res:\n" << res << endl;
-//
-//	s.P.block(0, 0, 3, 3) = res;
-//
-//	// Update robot to feature cross corelation
-//	for (int ft = 0; ft < s.fcount; ft++)
-//	{
-//		MatrixXf rtf = s.P.block<3, 2>(0, 3 + ft * 2);
-//		MatrixXf res = s.A * rtf;
-//
-//		s.P.block<3, 2>(0, 3 + ft * 2) = res;
-//		s.P.block<2, 3>(3 + ft * 2, 0) = res.transpose();
-//	}
-//}

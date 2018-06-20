@@ -95,7 +95,6 @@ int readOdometryFromFile(char *logFile, odometry_t *odometry, int max_num_readin
 			// ODOM x y theta tv rv accel
 			sscanf(line, "ODOM %f %f %f %f %f %f %f %s %f", &odo.x, &odo.y, &odo.Q, &odo.tv, &odo.rv, &dummy, &dummy, dummyN, &odo.ts);
 			odometry[index++] = odo;
-			printf("ODOM:%d %f %f %f %f %f\n" ,index, odo.tv, odo.rv, odo.Q, dummy, odo.ts);
 		}
 		
 		if (index >= max_num_readings)

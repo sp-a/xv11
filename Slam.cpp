@@ -71,7 +71,7 @@ double angle_diff(double a, double b)
 	return min(abs(q1-q2), abs(q1 + 2 * PI -q2));
 }
 
-void runOnDataset(char *filename)
+void runOnDataset(char *filename, int vel_model)
 {
 	FeatureDetector detect(10, 30, (float)0.005, 50);
 
@@ -94,14 +94,16 @@ void runOnDataset(char *filename)
 		float time = lidar[iter].ts; // current time
 		int dangle, dx, dy;
 
-		evolve(&robot, time);
+		if(vel_model)
+			evolve(&robot, time);
 		while(robot.Q > 2* PI)
 		  	robot.Q -= 2 * PI;
 		while(robot.Q <  0)
 		  	robot.Q += 2 * PI;
 
 		float odom[3];
-		// getCurrentOdometry(&robot, time, odom);
+		if(!vel_model)
+			getCurrentOdometry(&robot, time, odom);
 		int num_points = convertLidarToSamplePoint(lidar[iter], data_points, num_lidar_samples);
 		int num_segments = 0;
 
@@ -134,8 +136,11 @@ void runOnDataset(char *filename)
 			printf("update: %f %f %f %f \n", dx, dy,dangle, residual);
 
 			robot.Q += dangle;
-			// robot.pos.x += odom[0] ;
-			// robot.pos.y += odom[1] ;
+			if(!vel_model)
+			{
+				robot.pos.x += odom[0] ;
+				robot.pos.y += odom[1] ;
+			}
 
 			while(robot.Q > 2* PI)
 		 		robot.Q -= 2 * PI;

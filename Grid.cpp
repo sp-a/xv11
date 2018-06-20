@@ -161,12 +161,9 @@ int extract_local_points(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int
 			{
 				if(g_grid[rx + tx][ry + ty] > 240  )
 				{
-					//l_grid[x + l_range][y + l_range] = g_grid[rx + tx][ry + ty];
 					points[num_points].x = tx;
 					points[num_points].y = ty;
 					num_points++;
-
-					// printf("iter %d last_seen %d\n", iter , last_seen[rx + tx][ry + ty] );
 				}
 			}
 		}
@@ -202,17 +199,11 @@ void update_map(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int g_range,
 				float trx = Px / (1 - Px);
 				float Px_1 = (float)g_grid[rx + tx][ry + ty] / 256;
 				float trx_1 = Px_1 / (1 - Px_1);
-				// printf ("px %f px_1 %f\n",  Px, Px_1);
 
 				float pp = trx * trx_1 / (1 + trx *  trx_1);
 				g_grid[rx + tx][ry + ty] = (int)(pp * 255);
-				// printf("pp: %f\n",  pp);
 				continue;
 			}
-
-
-			
-			// freq[rx + tx][ry + ty] ++;
 					
 			if(val == 255)
 			{
@@ -221,10 +212,6 @@ void update_map(uint8_t g_grid[GLOBAL_GRID_SIZE][GLOBAL_GRID_SIZE], int g_range,
 				last_seen[rx + tx][ry + ty] = iter;
 			}
 
-			// if(val == 0 && g_grid[rx + tx][ry + ty] == 255 && 
-			// 	last_seen[rx + tx][ry + ty] - iter > 100)
-			// 		freq[rx + tx][ry + ty] ++;
-			
 			float prob = (float) occ[rx + tx][ry + ty] / freq[rx + tx][ry + ty];
 			g_grid[rx + tx][ry + ty] = (int)roundf(prob * 255);		
 		}
@@ -287,11 +274,6 @@ int compute_grid_diff(uint8_t l_grid[LOCAL_GRID_SIZE][LOCAL_GRID_SIZE], int l_ra
 	return sum;
 }
 
-float ddist(int x0, int y0, int x1, int y1)
-{
-	return (float)sqrt((x0-x1)^2 + (y0-y1)^2);
-}
-
 void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], int g_range,
 				 point_t *scan, int num_scan,
 				 float *angle, float *rx, float *ry, float *residual)
@@ -299,18 +281,21 @@ void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], in
 	int best_cost = 1000000000;
 	float best_dx, best_dy, best_dangle, best_matches;
 	
-	for (float dx = 0; dx <= 8 ; )
+	for (float dx = 0; dx <= 10 ; )
 	{
-		for (float dy = 0; dy <= 8; )
+		for (float dy = 0; dy <= 10; )
 		{
 			for (float dangle = 0; dangle <= 20 * 0.0174532925; )
 			{
 				int cost = 0;
 
+				float c = cos(dangle);
+				float s = sin(dangle);
+
 				for(int ind = 0; ind < num_scan ; ++ind)
 				{
-					float nx = cos(dangle) * scan[ind].x - sin(dangle) * scan[ind].y + dx;
-					float ny = sin(dangle) * scan[ind].x + cos(dangle) * scan[ind].y + dy;
+					float nx = c * scan[ind].x - s * scan[ind].y + dx;
+					float ny = s * scan[ind].x + c * scan[ind].y + dy;
 
 					int dnx = (int)roundf(nx) + g_range;
 					int dny = (int)roundf(ny) + g_range;
@@ -328,14 +313,14 @@ void scan_to_map(uint8_t map[LOCAL_GRID_PADDED_SIZE][LOCAL_GRID_PADDED_SIZE], in
 				}
 
 				dangle = -dangle;
-				if (dangle >= 0) dangle += 1 * 0.0174532925;
+				if (dangle >= 0) dangle += 2 * 0.0174532925;
 			}
 
 			dy = -dy;
-			if (dy >= 0) dy += 1;
+			if (dy >= 0) dy += 2;
 		}
 		dx = -dx;
-		if (dx >= 0) dx += 1;
+		if (dx >= 0) dx += 2;
 	}
 
 	*angle = best_dangle;
